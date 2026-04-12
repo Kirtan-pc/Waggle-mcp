@@ -20,6 +20,7 @@ from waggle.intelligence import (
     compatible_node_types,
     content_token_jaccard,
     detect_conflict_reason,
+    extract_choice_entity,
     extract_conversation_candidates,
     infer_label,
     infer_node_type,
@@ -1149,7 +1150,20 @@ class MemoryGraph:
             existing_label = normalize_text(existing_node.label)
             existing_content = normalize_text(existing_node.content)
 
-            # ── Layer 1: exact string matches (free, always run) ─────────────
+            # ── Layer 0: entity-key hard block ────────────────────────
+            # If both nodes name a specific technology AND those technologies
+            # are different (but in the same category), block the merge.
+            # e.g. "use PostgreSQL" vs "use MySQL" — similar sentence, different choice.
+            node_entity = extract_choice_entity(node.content)
+            existing_entity = extract_choice_entity(existing_node.content)
+            if (
+                node_entity is not None
+                and existing_entity is not None
+                and node_entity[1] == existing_entity[1]   # same category
+                and node_entity[0] != existing_entity[0]   # different entity
+            ):
+                continue  # never merge "postgres" node with "mysql" node
+
             if normalized_content == existing_content:
                 return existing_node, "exact_content", 1.0
             if normalized_label == existing_label:

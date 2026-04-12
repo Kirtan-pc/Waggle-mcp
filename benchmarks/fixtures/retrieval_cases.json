@@ -42,7 +42,7 @@
     },
     {
       "label": "GraphQL rejected",
-      "content": "Team decided against GraphQL — REST is sufficient and the team lacks GraphQL expertise",
+      "content": "Team decided against GraphQL due to lack of expertise and REST being sufficient",
       "node_type": "decision"
     },
     {
@@ -59,6 +59,36 @@
       "label": "Embedding model choice",
       "content": "all-MiniLM-L6-v2 chosen for local semantic embeddings, no API key needed",
       "node_type": "decision"
+    },
+    {
+      "label": "Dedup threshold conservative",
+      "content": "Deduplication threshold kept at 0.97 until larger fixture set validates lowering it",
+      "node_type": "decision"
+    },
+    {
+      "label": "Token efficiency claim",
+      "content": "Waggle retrieves context in approximately 4x fewer tokens than chunked-vector RAG baselines",
+      "node_type": "fact"
+    },
+    {
+      "label": "MCP stdio transport",
+      "content": "Claude Desktop and Codex connect via stdio MCP transport",
+      "node_type": "fact"
+    },
+    {
+      "label": "Multi-tenant isolation",
+      "content": "Each tenant has a separate node namespace; cross-tenant queries are blocked",
+      "node_type": "fact"
+    },
+    {
+      "label": "Backup export format",
+      "content": "Graph backups are exported as portable JSON files via export_graph_backup",
+      "node_type": "fact"
+    },
+    {
+      "label": "Conflict detection edge",
+      "content": "When a new node contradicts an existing node, a contradicts edge is added automatically",
+      "node_type": "concept"
     }
   ],
   "queries": [
@@ -103,7 +133,7 @@
       "query": "there's a bug in authentication around token refresh",
       "expected_label_contains": "JWT refresh race",
       "difficulty": "hard",
-      "note": "Query mentions neither 'race condition' nor 'rotation' — tests semantic generalization"
+      "note": "Neither 'race condition' nor 'rotation' — tests semantic generalization on auth domain"
     },
     {
       "name": "api_throttle_adversarial",
@@ -117,28 +147,70 @@
       "query": "did we ever consider switching away from REST",
       "expected_label_contains": "GraphQL rejected",
       "difficulty": "hard",
-      "note": "Query is about history of REST, which only connects to the GraphQL rejection node"
+      "note": "Query is about REST history; only connects to the GraphQL rejection node"
     },
     {
       "name": "vector_search_implementation",
       "query": "how does semantic search work without an API key",
       "expected_label_contains": "Embedding model choice",
       "difficulty": "hard",
-      "note": "No overlap with the node label — tests deep semantic resolution"
+      "note": "No overlap with node label — tests deep semantic resolution"
     },
     {
       "name": "deployment_surge",
       "query": "what deployment strategy are we using in prod",
       "expected_label_contains": "Kubernetes rollout strategy",
       "difficulty": "hard",
-      "note": "Prod == production, strategy is present but surrounded by other K8s facts"
+      "note": "prod == production, strategy is present but surrounded by other K8s facts"
     },
     {
       "name": "db_original_choice_temporal",
       "query": "what was the original database before we changed it",
       "expected_label_contains": "Database choice v1",
       "difficulty": "hard",
-      "note": "Requires temporal disambiguation — v1 not v2 — in presence of the newer decision node"
+      "note": "Requires temporal disambiguation — v1 not v2 — in presence of a newer decision node"
+    },
+    {
+      "name": "k8s_surge_indirect",
+      "query": "how much extra capacity do we spin up during a rollout",
+      "expected_label_contains": "Kubernetes rollout strategy",
+      "difficulty": "hard",
+      "note": "Asks about 25% max surge concept without using the word 'surge' or 'strategy'"
+    },
+    {
+      "name": "token_cost_indirect",
+      "query": "how does waggle reduce context window usage",
+      "expected_label_contains": "Token efficiency claim",
+      "difficulty": "hard",
+      "note": "No token/RAG terminology overlap — must infer from task domain"
+    },
+    {
+      "name": "client_connection_adversarial",
+      "query": "how does Claude Desktop connect to the memory server",
+      "expected_label_contains": "MCP stdio transport",
+      "difficulty": "hard",
+      "note": "stdio/MCP not mentioned in query — tests technology-specific semantic recall"
+    },
+    {
+      "name": "tenant_data_separation",
+      "query": "can one user's agent see another user's memory",
+      "expected_label_contains": "Multi-tenant isolation",
+      "difficulty": "hard",
+      "note": "Framed as a privacy/security question; no overlap with 'namespace' or 'tenant'"
+    },
+    {
+      "name": "conflict_mechanism",
+      "query": "what happens when two stored facts contradict each other",
+      "expected_label_contains": "Conflict detection edge",
+      "difficulty": "hard",
+      "note": "Asks about mechanism (what happens) not about the name (contradicts edge)"
+    },
+    {
+      "name": "backup_format_indirect",
+      "query": "can I migrate my memory to a different machine",
+      "expected_label_contains": "Backup export format",
+      "difficulty": "hard",
+      "note": "Migration framing; no mention of 'backup', 'JSON', or 'export'"
     }
   ]
 }

@@ -87,25 +87,70 @@ _DOMAIN_HINT_TOKENS = {
     "framework",
 }
 _CHOICE_CATEGORY_BY_TOKEN = {
+    # API styles
     "rest": "api-style",
     "graphql": "api-style",
     "grpc": "api-style",
     "soap": "api-style",
+    "trpc": "api-style",
+    # Databases / stores
     "sqlite": "database",
     "postgres": "database",
     "postgresql": "database",
     "mysql": "database",
+    "mariadb": "database",
     "mongodb": "database",
     "neo4j": "database",
     "redis": "database",
+    "memcached": "database",
+    "cassandra": "database",
+    "dynamodb": "database",
+    "firestore": "database",
+    "cockroachdb": "database",
+    "clickhouse": "database",
+    # Backend frameworks
     "fastapi": "backend-framework",
     "django": "backend-framework",
     "flask": "backend-framework",
     "express": "backend-framework",
     "nestjs": "backend-framework",
+    "rails": "backend-framework",
+    "spring": "backend-framework",
+    "gin": "backend-framework",
+    "fiber": "backend-framework",
+    # Frontend frameworks
     "react": "frontend-framework",
     "vue": "frontend-framework",
     "svelte": "frontend-framework",
+    "angular": "frontend-framework",
+    "nextjs": "frontend-framework",
+    "nuxt": "frontend-framework",
+    # Auth
+    "jwt": "auth-mechanism",
+    "oauth": "auth-mechanism",
+    "saml": "auth-mechanism",
+    "session": "auth-mechanism",
+    "cookie": "auth-mechanism",
+    "apikey": "auth-mechanism",
+    # Deployment
+    "kubernetes": "deployment",
+    "docker": "deployment",
+    "heroku": "deployment",
+    "lambda": "deployment",
+    "fargate": "deployment",
+    "cloudrun": "deployment",
+    # Queues / messaging
+    "kafka": "message-queue",
+    "rabbitmq": "message-queue",
+    "sqs": "message-queue",
+    "pubsub": "message-queue",
+    "nats": "message-queue",
+    # Embedding / ML
+    "miniLM": "embedding-model",
+    "minilm": "embedding-model",
+    "ada": "embedding-model",
+    "openai": "embedding-model",
+    "cohere": "embedding-model",
 }
 
 
@@ -158,12 +203,42 @@ def type_aware_dedup_threshold(node_type: NodeType, *, default: float = 0.97) ->
     return _TYPE_DEDUP_THRESHOLD.get(node_type, default)
 
 
+def extract_choice_entity(text: str) -> tuple[str, str] | None:
+    """Extract the dominant named technology/entity from *text*.
+
+    Returns ``(entity_token, category)`` if a known entity is found, or
+    ``None`` if the text contains no recognised technology token.
+
+    Used as a **hard merge gate** in deduplication: if two nodes reference
+    *different* entities in the *same* category (e.g. "postgresql" vs "mysql"
+    both in "database"), they must NOT be merged regardless of cosine score.
+
+    Examples::
+
+        extract_choice_entity("We decided to use PostgreSQL")
+        # → ("postgresql", "database")
+
+        extract_choice_entity("MySQL replication is painful")
+        # → ("mysql", "database")
+
+        extract_choice_entity("The team prefers async support")
+        # → None  (no recognisable technology token)
+    """
+    tokens = [t.lower() for t in _TOKEN_RE.findall(text)]
+    for token in tokens:
+        category = _CHOICE_CATEGORY_BY_TOKEN.get(token)
+        if category is not None:
+            return token, category
+    return None
+
+
 def tokenize_text(value: str) -> set[str]:
     return {
         token
         for token in _TOKEN_RE.findall(normalize_text(value))
         if token and token not in _STOPWORDS and len(token) > 1
     }
+
 
 
 def label_similarity(left: str, right: str) -> float:

@@ -235,11 +235,11 @@ Fixture set: 12 dialogue pairs covering simple recall, interruptions, reversals,
 
 ### Retrieval accuracy
 
-Fixture set: 12 nodes, 12 queries — 6 easy (direct paraphrase) and 6 hard (adversarial: semantic generalization, temporal disambiguation, domain-level misdirection).
+Fixture set: 18 nodes, 18 queries — 6 easy (direct paraphrase) and 12 hard (adversarial: semantic generalization, temporal disambiguation, indirect domain translation, privacy/security framing).
 
 | Corpus | Easy queries | Hard queries | Overall Hit@k |
 |--------|-------------|-------------|---------------|
-| 12-node benchmark | 6/6 = 100% | 5/6 = 83% | 11/12 = **92%** |
+| 18-node benchmark | 6/6 = 100% | 9/12 = 75% | 15/18 = **83%** |
 
 ### Token efficiency vs. chunked-vector RAG
 
@@ -259,10 +259,11 @@ The tradeoff is honest: the chunked baseline achieves 100% Hit@k on this corpus 
 
 Fixture set: 22 node pairs — 11 true duplicates (synonym, paraphrase, domain-level equivalence) and 11 false friends (same domain, distinct semantics). Balanced to test both false-positive and false-negative failure modes.
 
-The dedup pipeline runs three layers in order:
-1. **Exact string match** — normalized content or label equality (free, always run)
-2. **Substring containment** — catches restatements where one phrase is a subset of the other
-3. **Semantic similarity** — cosine via `all-MiniLM-L6-v2`:
+The dedup pipeline runs four layers in order:
+1. **Layer 0 — Entity-key hard block** — if both nodes reference *different* named technologies in the *same* category (e.g. `postgresql` vs `mysql`, both `database`), the merge is blocked unconditionally regardless of cosine score. Categories cover databases, frameworks, auth mechanisms, deployment targets, queues, and embedding models.
+2. **Layer 1 — Exact string match** — normalized content or label equality (free, always run)
+3. **Layer 2 — Substring containment** — catches restatements where one sentence is a strict subset of the other
+4. **Layer 3 — Semantic similarity** — cosine via `all-MiniLM-L6-v2`:
    - Type-aware threshold: `decision`/`preference` nodes merge at 0.82; `fact` at 0.92; `entity` at 0.97
    - Jaccard-boosted path: if bag-of-words overlap ≥ 0.35 AND cosine ≥ (type threshold − 0.05), treat as duplicate
    - Conservative cosine fallback at global `dedup_similarity_threshold`
