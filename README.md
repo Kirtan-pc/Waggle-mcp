@@ -209,22 +209,25 @@ When the agent observes a conversation, the backend runs a Pydantic-validated LL
 
 ## Performance & Benchmarking
 
-All numbers below are measured from [`tests/artifacts/benchmark_current.json`](./tests/artifacts/benchmark_current.json) — run against the fixture versions currently checked in to `benchmarks/fixtures/`.
+All numbers below are reproducible from the checked-in fixtures in `benchmarks/fixtures/` using the harness at [`scripts/benchmark_extraction.py`](./scripts/benchmark_extraction.py). Saved output artifacts live in [`tests/artifacts/`](./tests/artifacts/README.md).
 
-Run it yourself:
+**One command produces all the tables below** (extraction regex baseline, retrieval, dedup, and the comparative token-efficiency pilot):
 
 ```bash
-# Regex extraction baseline
-PYTHONPATH=src .venv/bin/python scripts/benchmark_extraction.py --extraction-backend regex
+PYTHONPATH=src .venv/bin/python scripts/benchmark_extraction.py \
+  --extraction-backend regex \
+  --systems waggle rag_naive \
+  --output tests/artifacts/benchmark_current.json
+```
 
-# LLM extraction (requires local Ollama)
+The LLM extraction row (75%) requires a separate run with a local Ollama instance — it is not included in `benchmark_current.json`:
+
+```bash
+# Requires Ollama running locally with qwen2.5:7b pulled
 PYTHONPATH=src .venv/bin/python scripts/benchmark_extraction.py \
   --extraction-backend llm --ollama-model qwen2.5:7b --ollama-timeout-seconds 30
-
-# Comparative pilot (save a fresh artifact)
-PYTHONPATH=src .venv/bin/python scripts/benchmark_extraction.py \
-  --systems waggle rag_naive --output tests/artifacts/benchmark_current.json
 ```
+
 
 ### Extraction accuracy
 
