@@ -4,6 +4,10 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+dist/
+*.aux
+*.log
+*.out
 .tmp/
 exports/
 *.db
