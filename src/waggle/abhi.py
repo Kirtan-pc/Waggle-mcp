@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import Any
 
 from waggle.models import (
+    AbhiDiffResult,
     AbhiExportResult,
     AbhiImportResult,
     AbhiInspectResult,
+    AbhiMergeResult,
     AbhiValidationResult,
 )
 
@@ -191,6 +193,155 @@ def inspect_abhi_document(document: dict[str, Any], *, input_path: str | Path) -
         query_count=len(document.get("queries", {}).get("saved", [])) if isinstance(document.get("queries"), dict) else 0,
         event_count=len(document.get("events", {})) if isinstance(document.get("events"), dict) else 0,
         content_hash=str(document.get("integrity", {}).get("content_hash", "")),
+    )
+
+
+def diff_abhi_documents(
+    document_a: dict[str, Any],
+    document_b: dict[str, Any],
+    *,
+    input_path_a: str | Path,
+    input_path_b: str | Path,
+) -> AbhiDiffResult:
+    nodes_a = {str(node.get("id", "")).strip(): node for node in document_a.get("graph", {}).get("nodes", [])}
+    nodes_b = {str(node.get("id", "")).strip(): node for node in document_b.get("graph", {}).get("nodes", [])}
+    edges_a = {str(edge.get("id", "")).strip(): edge for edge in document_a.get("graph", {}).get("edges", [])}
+    edges_b = {str(edge.get("id", "")).strip(): edge for edge in document_b.get("graph", {}).get("edges", [])}
+
+    nodes_added = sorted(node_id for node_id in nodes_b if node_id and node_id not in nodes_a)
+    nodes_removed = sorted(node_id for node_id in nodes_a if node_id and node_id not in nodes_b)
+    nodes_updated = sorted(
+        node_id
+        for node_id in nodes_a.keys() & nodes_b.keys()
+        if _canonical_graph_object(nodes_a[node_id]) != _canonical_graph_object(nodes_b[node_id])
+    )
+    edges_added = sorted(edge_id for edge_id in edges_b if edge_id and edge_id not in edges_a)
+    edges_removed = sorted(edge_id for edge_id in edges_a if edge_id and edge_id not in edges_b)
+    edges_updated = sorted(
+        edge_id
+        for edge_id in edges_a.keys() & edges_b.keys()
+        if _canonical_graph_object(edges_a[edge_id]) != _canonical_graph_object(edges_b[edge_id])
+    )
+
+    semantic_changes: list[str] = []
+    for node_id in nodes_updated:
+        before = nodes_a[node_id]
+        after = nodes_b[node_id]
+        if normalize_text(str(before.get("content", ""))) != normalize_text(str(after.get("content", ""))):
+            semantic_changes.append(
+                f"Node {node_id} content changed from '{_semantic_label(before)}' to '{_semantic_label(after)}'."
+            )
+        elif str(before.get("type", "")).strip() != str(after.get("type", "")).strip():
+            semantic_changes.append(
+                f"Node {node_id} type changed from '{before.get('type', '')}' to '{after.get('type', '')}'."
+            )
+    for edge_id in edges_updated:
+        before = edges_a[edge_id]
+        after = edges_b[edge_id]
+        if str(before.get("type", "")).strip() != str(after.get("type", "")).strip():
+            semantic_changes.append(
+                f"Edge {edge_id} relationship changed from '{before.get('type', '')}' to '{after.get('type', '')}'."
+            )
+
+    return AbhiDiffResult(
+        input_path_a=str(Path(input_path_a).expanduser()),
+        input_path_b=str(Path(input_path_b).expanduser()),
+        abhi_spec_version_a=str(document_a.get("integrity", {}).get("abhi_spec_version", "")) or ABHI_SPEC_VERSION,
+        abhi_spec_version_b=str(document_b.get("integrity", {}).get("abhi_spec_version", "")) or ABHI_SPEC_VERSION,
+        nodes_added=nodes_added,
+        nodes_removed=nodes_removed,
+        nodes_updated=nodes_updated,
+        edges_added=edges_added,
+        edges_removed=edges_removed,
+        edges_updated=edges_updated,
+        semantic_changes=semantic_changes,
+    )
+
+
+def merge_abhi_documents(
+    base_document: dict[str, Any],
+    left_document: dict[str, Any],
+    right_document: dict[str, Any],
+    *,
+    base_input_path: str | Path,
+    left_input_path: str | Path,
+    right_input_path: str | Path,
+    output_path: str | Path,
+    merge_strategy: str = "prefer_right",
+) -> AbhiMergeResult:
+    strategy = merge_strategy.strip().lower() or "prefer_right"
+    if strategy not in {"prefer_right", "prefer_left"}:
+        raise ValueError("merge_strategy must be one of: prefer_right, prefer_left")
+
+    merged_nodes, node_conflicts = _merge_graph_objects(
+        base_document.get("graph", {}).get("nodes", []),
+        left_document.get("graph", {}).get("nodes", []),
+        right_document.get("graph", {}).get("nodes", []),
+        strategy=strategy,
+        object_label="node",
+    )
+    merged_edges, edge_conflicts = _merge_graph_objects(
+        base_document.get("graph", {}).get("edges", []),
+        left_document.get("graph", {}).get("edges", []),
+        right_document.get("graph", {}).get("edges", []),
+        strategy=strategy,
+        object_label="edge",
+    )
+
+    merged = deepcopy(base_document)
+    merged["graph"] = {
+        "nodes": merged_nodes,
+        "edges": merged_edges,
+    }
+
+    merged["schema"] = _merge_prefer_side(base_document.get("schema", {}), left_document.get("schema", {}), right_document.get("schema", {}), strategy)
+    merged["constraints"] = _merge_unique_list(base_document.get("constraints", []), left_document.get("constraints", []), right_document.get("constraints", []))
+    merged["ai_rules"] = _merge_prefer_side(base_document.get("ai_rules", {}), left_document.get("ai_rules", {}), right_document.get("ai_rules", {}), strategy)
+    merged["ui"] = _merge_prefer_side(base_document.get("ui", _default_ui()), left_document.get("ui", _default_ui()), right_document.get("ui", _default_ui()), strategy)
+    merged["external_refs"] = _merge_unique_list(base_document.get("external_refs", []), left_document.get("external_refs", []), right_document.get("external_refs", []))
+    merged["chunks"] = _merge_prefer_side(base_document.get("chunks", {}), left_document.get("chunks", {}), right_document.get("chunks", {}), strategy)
+    merged["queries"] = _merge_queries(base_document.get("queries", {}), left_document.get("queries", {}), right_document.get("queries", {}), strategy)
+    merged["events"] = _merge_prefer_side(base_document.get("events", {}), left_document.get("events", {}), right_document.get("events", {}), strategy)
+    merged["waggle"] = _merge_prefer_side(base_document.get("waggle", {}), left_document.get("waggle", {}), right_document.get("waggle", {}), strategy)
+
+    merged_versions = []
+    for source in (base_document, left_document, right_document):
+        for version in source.get("versions", []):
+            if _canonical_graph_object(version) not in {_canonical_graph_object(item) for item in merged_versions}:
+                merged_versions.append(deepcopy(version))
+    merged_versions.append(
+        {
+            "id": f"merge-{len(merged_versions) + 1}",
+            "parent": str((right_document.get("versions", [{}])[-1] if right_document.get("versions") else {}).get("id", "")) or None,
+            "ts": _latest_validation_timestamp(merged["graph"]["nodes"], merged["graph"]["edges"]),
+            "author": "waggle-abhi-merge",
+            "changes": [],
+            "message": f"Three-way merge completed with strategy '{strategy}'",
+        }
+    )
+    merged["versions"] = merged_versions
+    merged["integrity"] = deepcopy(merged.get("integrity", {}))
+    merged["integrity"]["node_count"] = len(merged["graph"]["nodes"])
+    merged["integrity"]["edge_count"] = len(merged["graph"]["edges"])
+    merged["integrity"]["last_validated"] = _latest_validation_timestamp(merged["graph"]["nodes"], merged["graph"]["edges"])
+    merged["integrity"]["abhi_spec_version"] = ABHI_SPEC_VERSION
+    merged["integrity"]["content_hash"] = compute_abhi_hash(merged)
+
+    destination = Path(output_path).expanduser()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+
+    return AbhiMergeResult(
+        base_input_path=str(Path(base_input_path).expanduser()),
+        left_input_path=str(Path(left_input_path).expanduser()),
+        right_input_path=str(Path(right_input_path).expanduser()),
+        output_path=str(destination),
+        merge_strategy=strategy,
+        abhi_spec_version=ABHI_SPEC_VERSION,
+        nodes_merged=len(merged["graph"]["nodes"]),
+        edges_merged=len(merged["graph"]["edges"]),
+        conflicts=[*node_conflicts, *edge_conflicts],
+        content_hash=merged["integrity"]["content_hash"],
     )
 
 
@@ -718,6 +869,35 @@ def normalize_text(value: str) -> str:
     return " ".join(value.strip().lower().split())
 
 
+def diff_abhi_files(*, input_path_a: str | Path, input_path_b: str | Path) -> AbhiDiffResult:
+    document_a = load_abhi_document(input_path_a)
+    document_b = load_abhi_document(input_path_b)
+    return diff_abhi_documents(document_a, document_b, input_path_a=input_path_a, input_path_b=input_path_b)
+
+
+def merge_abhi_files(
+    *,
+    base_input_path: str | Path,
+    left_input_path: str | Path,
+    right_input_path: str | Path,
+    output_path: str | Path,
+    merge_strategy: str = "prefer_right",
+) -> AbhiMergeResult:
+    base_document = load_abhi_document(base_input_path)
+    left_document = load_abhi_document(left_input_path)
+    right_document = load_abhi_document(right_input_path)
+    return merge_abhi_documents(
+        base_document,
+        left_document,
+        right_document,
+        base_input_path=base_input_path,
+        left_input_path=left_input_path,
+        right_input_path=right_input_path,
+        output_path=output_path,
+        merge_strategy=merge_strategy,
+    )
+
+
 def _execute_abhi_node_query(nodes: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
     selected = list(nodes)
     lowered = query.lower()
@@ -861,3 +1041,114 @@ def _node_is_within_days(node: dict[str, Any], days: int) -> bool:
 def _node_timestamp_for_sort(node: dict[str, Any]) -> str:
     metadata = node.get("metadata", {}) if isinstance(node.get("metadata"), dict) else {}
     return str(metadata.get("ts") or metadata.get("updated_at") or metadata.get("created_at") or "").strip()
+
+
+def _canonical_graph_object(value: dict[str, Any] | None) -> str:
+    return json.dumps(value or {}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _semantic_label(node: dict[str, Any]) -> str:
+    metadata = node.get("metadata", {}) if isinstance(node.get("metadata"), dict) else {}
+    return str(metadata.get("label") or node.get("content", "")).strip()
+
+
+def _merge_graph_objects(
+    base_items: list[dict[str, Any]],
+    left_items: list[dict[str, Any]],
+    right_items: list[dict[str, Any]],
+    *,
+    strategy: str,
+    object_label: str,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    base = {str(item.get("id", "")).strip(): deepcopy(item) for item in base_items if str(item.get("id", "")).strip()}
+    left = {str(item.get("id", "")).strip(): deepcopy(item) for item in left_items if str(item.get("id", "")).strip()}
+    right = {str(item.get("id", "")).strip(): deepcopy(item) for item in right_items if str(item.get("id", "")).strip()}
+    conflicts: list[str] = []
+    merged: dict[str, dict[str, Any]] = {}
+    all_ids = sorted(set(base) | set(left) | set(right))
+
+    for item_id in all_ids:
+        base_item = base.get(item_id)
+        left_item = left.get(item_id)
+        right_item = right.get(item_id)
+        if left_item is None and right_item is None:
+            continue
+        if left_item is not None and right_item is not None and _canonical_graph_object(left_item) == _canonical_graph_object(right_item):
+            merged[item_id] = deepcopy(left_item)
+            continue
+        if base_item is not None and left_item is not None and _canonical_graph_object(base_item) == _canonical_graph_object(left_item):
+            if right_item is not None:
+                merged[item_id] = deepcopy(right_item)
+            continue
+        if base_item is not None and right_item is not None and _canonical_graph_object(base_item) == _canonical_graph_object(right_item):
+            if left_item is not None:
+                merged[item_id] = deepcopy(left_item)
+            continue
+        if base_item is None:
+            chosen = left_item if strategy == "prefer_left" else right_item
+            fallback = right_item if strategy == "prefer_left" else left_item
+            merged[item_id] = deepcopy(chosen or fallback or {})
+            if left_item is not None and right_item is not None and _canonical_graph_object(left_item) != _canonical_graph_object(right_item):
+                conflicts.append(f"{object_label.capitalize()} {item_id} was added differently on both sides; chose {strategy}.")
+            continue
+        if left_item is None and right_item is not None:
+            conflicts.append(f"{object_label.capitalize()} {item_id} was deleted on left and changed on right; chose {strategy}.")
+            if strategy == "prefer_right":
+                merged[item_id] = deepcopy(right_item)
+            continue
+        if right_item is None and left_item is not None:
+            conflicts.append(f"{object_label.capitalize()} {item_id} was changed on left and deleted on right; chose {strategy}.")
+            if strategy == "prefer_left":
+                merged[item_id] = deepcopy(left_item)
+            continue
+        chosen = left_item if strategy == "prefer_left" else right_item
+        merged[item_id] = deepcopy(chosen or {})
+        conflicts.append(f"{object_label.capitalize()} {item_id} changed on both sides; chose {strategy}.")
+
+    return [merged[item_id] for item_id in sorted(merged)], conflicts
+
+
+def _merge_prefer_side(base: Any, left: Any, right: Any, strategy: str) -> Any:
+    base_json = _canonical_graph_object(base if isinstance(base, dict) else {"value": base})
+    left_json = _canonical_graph_object(left if isinstance(left, dict) else {"value": left})
+    right_json = _canonical_graph_object(right if isinstance(right, dict) else {"value": right})
+    if left_json == right_json:
+        return deepcopy(left)
+    if base_json == left_json:
+        return deepcopy(right)
+    if base_json == right_json:
+        return deepcopy(left)
+    return deepcopy(left if strategy == "prefer_left" else right)
+
+
+def _merge_unique_list(base: list[Any], left: list[Any], right: list[Any]) -> list[Any]:
+    merged: list[Any] = []
+    seen: set[str] = set()
+    for item in [*base, *left, *right]:
+        key = _canonical_graph_object(item if isinstance(item, dict) else {"value": item})
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(deepcopy(item))
+    return merged
+
+
+def _merge_queries(base: dict[str, Any], left: dict[str, Any], right: dict[str, Any], strategy: str) -> dict[str, Any]:
+    merged_saved: dict[str, dict[str, Any]] = {}
+    for source in (base, left, right):
+        for item in source.get("saved", []) if isinstance(source, dict) else []:
+            query_id = str(item.get("id", "")).strip()
+            if not query_id:
+                continue
+            merged_saved[query_id] = deepcopy(item)
+    auto_run = _merge_unique_list(
+        list(base.get("auto_run_on_open", [])) if isinstance(base, dict) else [],
+        list(left.get("auto_run_on_open", [])) if isinstance(left, dict) else [],
+        list(right.get("auto_run_on_open", [])) if isinstance(right, dict) else [],
+    )
+    winner = _merge_prefer_side(base, left, right, strategy)
+    return {
+        **(winner if isinstance(winner, dict) else {}),
+        "saved": [merged_saved[key] for key in sorted(merged_saved)],
+        "auto_run_on_open": auto_run,
+    }

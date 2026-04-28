@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from waggle.models import (
+    AbhiDiffResult,
     AbhiInspectResult,
+    AbhiMergeResult,
     AbhiValidationResult,
     ConflictEntry,
     ConflictListResult,
@@ -150,6 +152,45 @@ def serialize_abhi_inspect(result: AbhiInspectResult) -> str:
     if result.content_hash:
         lines.append(f"Content hash: {result.content_hash}")
     lines.append("=== End ABHI Inspect ===")
+    return "\n".join(lines)
+
+
+def serialize_abhi_diff(result: AbhiDiffResult) -> str:
+    lines = [
+        "=== ABHI Diff ===",
+        f"File A: {result.input_path_a}",
+        f"File B: {result.input_path_b}",
+        f"Nodes added: {len(result.nodes_added)}",
+        f"Nodes removed: {len(result.nodes_removed)}",
+        f"Nodes updated: {len(result.nodes_updated)}",
+        f"Edges added: {len(result.edges_added)}",
+        f"Edges removed: {len(result.edges_removed)}",
+        f"Edges updated: {len(result.edges_updated)}",
+    ]
+    if result.semantic_changes:
+        lines.extend(["", "[SEMANTIC CHANGES]"])
+        lines.extend(f"• {item}" for item in result.semantic_changes)
+    lines.append("=== End ABHI Diff ===")
+    return "\n".join(lines)
+
+
+def serialize_abhi_merge(result: AbhiMergeResult) -> str:
+    lines = [
+        "=== ABHI Merge ===",
+        f"Base: {result.base_input_path}",
+        f"Left: {result.left_input_path}",
+        f"Right: {result.right_input_path}",
+        f"Output: {result.output_path}",
+        f"Strategy: {result.merge_strategy}",
+        f"Nodes merged: {result.nodes_merged}",
+        f"Edges merged: {result.edges_merged}",
+    ]
+    if result.content_hash:
+        lines.append(f"Content hash: {result.content_hash}")
+    if result.conflicts:
+        lines.extend(["", "[CONFLICTS]"])
+        lines.extend(f"• {item}" for item in result.conflicts)
+    lines.append("=== End ABHI Merge ===")
     return "\n".join(lines)
 
 

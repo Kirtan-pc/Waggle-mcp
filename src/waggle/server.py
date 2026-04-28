@@ -71,6 +71,8 @@ from waggle.rate_limit import RateLimiter
 from waggle.runtime_context import runtime_context
 from waggle.serializer import (
     serialize_abhi_inspect,
+    serialize_abhi_diff,
+    serialize_abhi_merge,
     serialize_abhi_validation,
     serialize_conflict_entry,
     serialize_conflicts,
@@ -94,13 +96,16 @@ WRITE_HEAVY_TOOLS = {
     "observe_conversation",
     "import_graph_backup",
     "import_abhi",
+    "merge_abhi",
     "import_markdown_vault",
 }
 REQUIRED_RUNTIME_METHODS = (
     "export_context_bundle",
     "export_markdown_vault",
     "export_abhi",
+    "diff_abhi",
     "import_abhi",
+    "merge_abhi",
     "validate_abhi",
     "inspect_abhi",
     "list_context_scopes",
@@ -850,6 +855,40 @@ class WaggleServer:
                 ),
             ),
             types.Tool(
+                name="diff_abhi",
+                description=(
+                    "Compare two .abhi files and report structural graph changes plus lightweight semantic changes."
+                ),
+                inputSchema=_object_input_schema(
+                    {
+                        "input_path_a": {"type": "string", "description": "Path to the first .abhi file."},
+                        "input_path_b": {"type": "string", "description": "Path to the second .abhi file."},
+                    },
+                    required=["input_path_a", "input_path_b"],
+                ),
+            ),
+            types.Tool(
+                name="merge_abhi",
+                description=(
+                    "Three-way merge branching .abhi files into one output file with explicit conflict reporting."
+                ),
+                inputSchema=_object_input_schema(
+                    {
+                        "base_input_path": {"type": "string", "description": "Path to the common base .abhi file."},
+                        "left_input_path": {"type": "string", "description": "Path to the left branch .abhi file."},
+                        "right_input_path": {"type": "string", "description": "Path to the right branch .abhi file."},
+                        "output_path": {"type": "string", "description": "Destination path for the merged .abhi file."},
+                        "merge_strategy": {
+                            "type": "string",
+                            "enum": ["prefer_right", "prefer_left"],
+                            "default": "prefer_right",
+                            "description": "Winner strategy when both sides changed the same object differently.",
+                        },
+                    },
+                    required=["base_input_path", "left_input_path", "right_input_path", "output_path"],
+                ),
+            ),
+            types.Tool(
                 name="validate_abhi",
                 description=(
                     "Validate an .abhi file without importing it. Verifies integrity hash, schema compliance, and constraint satisfaction."
@@ -1433,6 +1472,27 @@ class WaggleServer:
                             "edges_updated": imported.edges_updated,
                             "hash_verified": imported.hash_verified,
                         },
+                    )
+                elif name == "diff_abhi":
+                    diff = graph.diff_abhi(
+                        input_path_a=arguments["input_path_a"],
+                        input_path_b=arguments["input_path_b"],
+                    )
+                    result = self._tool_result(
+                        serialize_abhi_diff(diff),
+                        diff.model_dump(mode="json"),
+                    )
+                elif name == "merge_abhi":
+                    merged = graph.merge_abhi(
+                        base_input_path=arguments["base_input_path"],
+                        left_input_path=arguments["left_input_path"],
+                        right_input_path=arguments["right_input_path"],
+                        output_path=arguments["output_path"],
+                        merge_strategy=arguments.get("merge_strategy", "prefer_right"),
+                    )
+                    result = self._tool_result(
+                        serialize_abhi_merge(merged),
+                        merged.model_dump(mode="json"),
                     )
                 elif name == "validate_abhi":
                     validation = graph.validate_abhi(input_path=arguments["input_path"])
@@ -2561,6 +2621,23 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     inspect_abhi.add_argument("--input", dest="input_path", required=True)
 
+    diff_abhi = subparsers.add_parser(
+        "diff",
+        help="Compare two .abhi memory files.",
+    )
+    diff_abhi.add_argument("--file-a", dest="input_path_a", required=True)
+    diff_abhi.add_argument("--file-b", dest="input_path_b", required=True)
+
+    merge_abhi = subparsers.add_parser(
+        "merge",
+        help="Three-way merge .abhi memory files.",
+    )
+    merge_abhi.add_argument("--base", dest="base_input_path", required=True)
+    merge_abhi.add_argument("--left", dest="left_input_path", required=True)
+    merge_abhi.add_argument("--right", dest="right_input_path", required=True)
+    merge_abhi.add_argument("--output", dest="output_path", required=True)
+    merge_abhi.add_argument("--merge-strategy", choices=["prefer_right", "prefer_left"], default="prefer_right")
+
     export_context_bundle = subparsers.add_parser(
         "export-context-bundle",
         help="Export a markdown/json context package for another model or conversation.",
@@ -2775,6 +2852,20 @@ def _run_admin_command(config: AppConfig, args: argparse.Namespace) -> int:
     if args.command == "inspect":
         inspected = backend.inspect_abhi(input_path=args.input_path)
         print(json.dumps(inspected.model_dump(mode="json"), indent=2))
+        return 0
+    if args.command == "diff":
+        diff = backend.diff_abhi(input_path_a=args.input_path_a, input_path_b=args.input_path_b)
+        print(json.dumps(diff.model_dump(mode="json"), indent=2))
+        return 0
+    if args.command == "merge":
+        merged = backend.merge_abhi(
+            base_input_path=args.base_input_path,
+            left_input_path=args.left_input_path,
+            right_input_path=args.right_input_path,
+            output_path=args.output_path,
+            merge_strategy=args.merge_strategy,
+        )
+        print(json.dumps(merged.model_dump(mode="json"), indent=2))
         return 0
     if args.command == "export-context-bundle":
         exported = backend.export_context_bundle(

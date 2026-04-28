@@ -9,7 +9,7 @@ from uuid import uuid4
 import networkx as nx
 import numpy as np
 
-from waggle.abhi import execute_abhi_query, load_abhi_document
+from waggle.abhi import diff_abhi_files, execute_abhi_query, load_abhi_document, merge_abhi_files
 from waggle.graph import MemoryGraph
 from waggle.models import NodeType, RelationType
 
@@ -500,6 +500,47 @@ def test_execute_abhi_query_matches_recent_and_filtered_nodes(tmp_path: Path) ->
     assert filtered["nodes"][0]["type"] == "decision"
     assert recent["query_id"] == "q1"
     assert len(recent["nodes"]) >= 1
+
+
+def test_diff_and_merge_abhi_files(tmp_path: Path) -> None:
+    base = make_graph(tmp_path / "base")
+    left = make_graph(tmp_path / "left")
+    right = make_graph(tmp_path / "right")
+
+    for graph in (base, left, right):
+        graph.add_node(
+            label="Decision",
+            content="Use PostgreSQL",
+            node_type=NodeType.DECISION,
+            project="studio",
+        )
+
+    left.add_node(
+        label="Reason",
+        content="Operational familiarity matters.",
+        node_type=NodeType.NOTE,
+        project="studio",
+    )
+    right_node = right.list_recent_nodes(limit=1, project="studio")[0]
+    right.update_node(node_id=right_node.id, content="Use PostgreSQL with managed backups")
+
+    base_file = base.export_abhi(output_path=tmp_path / "base.abhi", project="studio")
+    left_file = left.export_abhi(output_path=tmp_path / "left.abhi", project="studio")
+    right_file = right.export_abhi(output_path=tmp_path / "right.abhi", project="studio")
+
+    diff = diff_abhi_files(input_path_a=left_file.output_path, input_path_b=right_file.output_path)
+    merged = merge_abhi_files(
+        base_input_path=base_file.output_path,
+        left_input_path=left_file.output_path,
+        right_input_path=right_file.output_path,
+        output_path=tmp_path / "merged.abhi",
+    )
+
+    assert diff.nodes_added or diff.nodes_updated
+    assert Path(merged.output_path).exists()
+    merged_doc = load_abhi_document(merged.output_path)
+    assert merged_doc["integrity"]["content_hash"].startswith("sha256:")
+    assert merged.nodes_merged >= 1
 
 
 def test_export_graph_html_creates_visualization_file(tmp_path: Path) -> None:

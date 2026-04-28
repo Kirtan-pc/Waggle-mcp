@@ -14,9 +14,11 @@ import numpy as np
 from waggle.abhi import (
     ABHI_SPEC_VERSION,
     abhi_to_snapshot,
+    diff_abhi_files,
     filter_snapshot_by_scope,
     inspect_abhi_document,
     load_abhi_document,
+    merge_abhi_files,
     validate_abhi_document,
     write_abhi_document,
 )
@@ -60,9 +62,11 @@ from waggle.markdown_vault import (
     vault_filename,
 )
 from waggle.models import (
+    AbhiDiffResult,
     AbhiExportResult,
     AbhiImportResult,
     AbhiInspectResult,
+    AbhiMergeResult,
     AbhiValidationResult,
     ApiKeyCreateResult,
     ApiKeyRecord,
@@ -2034,6 +2038,26 @@ class Neo4jMemoryGraph:
     def inspect_abhi(self, *, input_path: str | Path) -> AbhiInspectResult:
         document = load_abhi_document(input_path)
         return inspect_abhi_document(document, input_path=input_path)
+
+    def diff_abhi(self, *, input_path_a: str | Path, input_path_b: str | Path) -> AbhiDiffResult:
+        return diff_abhi_files(input_path_a=input_path_a, input_path_b=input_path_b)
+
+    def merge_abhi(
+        self,
+        *,
+        base_input_path: str | Path,
+        left_input_path: str | Path,
+        right_input_path: str | Path,
+        output_path: str | Path,
+        merge_strategy: str = "prefer_right",
+    ) -> AbhiMergeResult:
+        return merge_abhi_files(
+            base_input_path=base_input_path,
+            left_input_path=left_input_path,
+            right_input_path=right_input_path,
+            output_path=output_path,
+            merge_strategy=merge_strategy,
+        )
 
     def import_abhi(self, *, input_path: str | Path) -> AbhiImportResult:
         source = Path(input_path).expanduser()

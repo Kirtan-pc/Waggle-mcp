@@ -327,6 +327,33 @@ class AbhiInspectResult(BaseModel):
     content_hash: str = ""
 
 
+class AbhiDiffResult(BaseModel):
+    input_path_a: str
+    input_path_b: str
+    abhi_spec_version_a: str = "1.0"
+    abhi_spec_version_b: str = "1.0"
+    nodes_added: list[str] = Field(default_factory=list)
+    nodes_removed: list[str] = Field(default_factory=list)
+    nodes_updated: list[str] = Field(default_factory=list)
+    edges_added: list[str] = Field(default_factory=list)
+    edges_removed: list[str] = Field(default_factory=list)
+    edges_updated: list[str] = Field(default_factory=list)
+    semantic_changes: list[str] = Field(default_factory=list)
+
+
+class AbhiMergeResult(BaseModel):
+    base_input_path: str
+    left_input_path: str
+    right_input_path: str
+    output_path: str
+    merge_strategy: str = "prefer_right"
+    abhi_spec_version: str = "1.0"
+    nodes_merged: int = 0
+    edges_merged: int = 0
+    conflicts: list[str] = Field(default_factory=list)
+    content_hash: str = ""
+
+
 class ObservationResult(BaseModel):
     stored_nodes: list[Node] = Field(default_factory=list)
     created_count: int = 0

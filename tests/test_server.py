@@ -118,12 +118,20 @@ def test_parser_accepts_graph_editor_commands() -> None:
 
     edit_args = parser.parse_args(["edit-graph", "--port", "8787", "--no-open"])
     view_args = parser.parse_args(["view-graph"])
+    diff_args = parser.parse_args(["diff", "--file-a", "a.abhi", "--file-b", "b.abhi"])
+    merge_args = parser.parse_args(
+        ["merge", "--base", "base.abhi", "--left", "left.abhi", "--right", "right.abhi", "--output", "merged.abhi"]
+    )
 
     assert edit_args.command == "edit-graph"
     assert edit_args.port == 8787
     assert edit_args.open is False
     assert view_args.command == "view-graph"
     assert view_args.open is True
+    assert diff_args.command == "diff"
+    assert diff_args.input_path_a == "a.abhi"
+    assert merge_args.command == "merge"
+    assert merge_args.merge_strategy == "prefer_right"
 
 
 def test_run_graph_editor_command_opens_browser_and_starts_uvicorn(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -388,6 +396,62 @@ def test_export_validate_inspect_and_import_abhi_tools(tmp_path: Path) -> None:
     assert imported.isError is False
     assert imported.structuredContent["hash_verified"] is True
     assert imported.structuredContent["nodes_created"] == 1
+
+
+def test_diff_and_merge_abhi_tools(tmp_path: Path) -> None:
+    base_app = make_app(tmp_path / "base")
+    left_app = make_app(tmp_path / "left")
+    right_app = make_app(tmp_path / "right")
+
+    for app in (base_app, left_app, right_app):
+        app.handle_tool_call(
+            "store_node",
+            {
+                "label": "Decision",
+                "content": "Use PostgreSQL",
+                "node_type": NodeType.DECISION.value,
+            },
+        )
+
+    left_app.handle_tool_call(
+        "store_node",
+        {
+            "label": "Reason",
+            "content": "Operational familiarity matters.",
+            "node_type": NodeType.NOTE.value,
+        },
+    )
+    right_app.graph.update_node(
+        node_id=right_app.graph.list_recent_nodes(limit=1)[0].id,
+        content="Use PostgreSQL with managed backups",
+    )
+
+    base_file = base_app.handle_tool_call("export_abhi", {"output_path": str(tmp_path / "base.abhi")})
+    left_file = left_app.handle_tool_call("export_abhi", {"output_path": str(tmp_path / "left.abhi")})
+    right_file = right_app.handle_tool_call("export_abhi", {"output_path": str(tmp_path / "right.abhi")})
+
+    diff_result = base_app.handle_tool_call(
+        "diff_abhi",
+        {
+            "input_path_a": left_file.structuredContent["output_path"],
+            "input_path_b": right_file.structuredContent["output_path"],
+        },
+    )
+    merge_result = base_app.handle_tool_call(
+        "merge_abhi",
+        {
+            "base_input_path": base_file.structuredContent["output_path"],
+            "left_input_path": left_file.structuredContent["output_path"],
+            "right_input_path": right_file.structuredContent["output_path"],
+            "output_path": str(tmp_path / "merged.abhi"),
+        },
+    )
+
+    assert diff_result.isError is False
+    assert diff_result.structuredContent["nodes_added"] or diff_result.structuredContent["nodes_removed"]
+    assert merge_result.isError is False
+    assert Path(merge_result.structuredContent["output_path"]).exists()
+    assert merge_result.structuredContent["nodes_merged"] >= 1
 
 
 def test_export_context_bundle_tool(tmp_path: Path) -> None:
