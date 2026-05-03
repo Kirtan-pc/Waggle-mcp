@@ -780,7 +780,89 @@ def test_export_context_bundle_tool(tmp_path: Path) -> None:
     assert "Context Bundle Export" in result.content[0].text
 
 
-def test_get_node_history_tool(tmp_path: Path) -> None:
+def test_commit_tool_git_vocabulary(tmp_path: Path) -> None:
+    """waggle commit (new name) produces the same .abhi output as export_abhi (old name)."""
+    app = make_app(tmp_path)
+    app.graph.add_node(
+        label="Commit test decision",
+        content="We decided to use the git vocabulary for the CLI.",
+        node_type=NodeType.DECISION,
+    )
+
+    # New canonical name — should produce an .abhi file
+    result = app.handle_tool_call("commit", {"output_path": str(tmp_path / "via_commit.abhi")})
+    assert result.isError is False
+    assert result.structuredContent["commit_format"] == "abhi"
+    assert Path(result.structuredContent["output_path"]).exists()
+    assert result.structuredContent["node_count"] >= 1
+
+    # Legacy name — must still work and produce the same format
+    result_legacy = app.handle_tool_call("export_abhi", {"output_path": str(tmp_path / "via_export_abhi.abhi")})
+    assert result_legacy.isError is False
+    assert result_legacy.structuredContent["commit_format"] == "abhi"
+    assert Path(result_legacy.structuredContent["output_path"]).exists()
+
+
+def test_export_context_bundle_alias_routes_to_bundle(tmp_path: Path) -> None:
+    """export_context_bundle (legacy) → commit --commit_format=bundle; mode field present."""
+    app = make_app(tmp_path)
+    app.graph.add_node(
+        label="Bundle alias test",
+        content="Portable context export ships first.",
+        node_type=NodeType.DECISION,
+    )
+
+    # Legacy name with no commit_format — must default to bundle path
+    result = app.handle_tool_call(
+        "export_context_bundle",
+        {"mode": "query", "query": "portable export", "format": "both", "output_path": str(tmp_path / "bundle")},
+    )
+    assert result.isError is False
+    assert result.structuredContent["mode"] == "query"
+    assert result.structuredContent["node_count"] >= 1
+    assert Path(result.structuredContent["markdown_path"]).exists()
+
+
+def test_export_context_bundle_caller_override_wins(tmp_path: Path) -> None:
+    """Caller passing commit_format='abhi' via the legacy name overrides the default bundle format."""
+    app = make_app(tmp_path)
+    app.graph.add_node(
+        label="Override test",
+        content="Caller-provided args must win over alias defaults.",
+        node_type=NodeType.DECISION,
+    )
+
+    # Caller explicitly requests abhi format even though the legacy name defaults to bundle
+    result = app.handle_tool_call(
+        "export_context_bundle",
+        {"commit_format": "abhi", "output_path": str(tmp_path / "override.abhi")},
+    )
+    assert result.isError is False
+    assert result.structuredContent["commit_format"] == "abhi"
+    assert Path(result.structuredContent["output_path"]).exists()
+
+
+def test_git_vocabulary_pull_aliases(tmp_path: Path) -> None:
+    """import_abhi and import_graph_backup both route to pull with the right pull_format."""
+    app = make_app(tmp_path)
+    app.graph.add_node(
+        label="Pull alias test",
+        content="Both import aliases must route correctly.",
+        node_type=NodeType.DECISION,
+    )
+
+    # Commit an .abhi file to pull back in
+    commit_result = app.handle_tool_call("commit", {"output_path": str(tmp_path / "mem.abhi")})
+    assert commit_result.isError is False
+    abhi_path = commit_result.structuredContent["output_path"]
+
+    # import_abhi → pull --pull_format=abhi
+    pull_result = app.handle_tool_call("import_abhi", {"input_path": abhi_path})
+    assert pull_result.isError is False
+    assert pull_result.structuredContent["pull_format"] == "abhi"
+
+
+
     app = make_app(tmp_path)
     observed = app.handle_tool_call(
         "observe_conversation",
