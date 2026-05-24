@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from retrieval.rankers.temporal import rank_temporal
+from waggle.retrieval.rankers.temporal import rank_temporal
 
 
 @dataclass(frozen=True)

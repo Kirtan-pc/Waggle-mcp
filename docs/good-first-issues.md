@@ -2,7 +2,9 @@
 
 These are candidate issues that would make the repository easier to contribute to and easier to trust as an open source project. Each item is intentionally scoped so a contributor can pick it up without needing full product context.
 
-## 1. Add a label sync script for repository labels
+## Completed recently
+
+### 1. Add a label sync script for repository labels
 
 - Recommended labels: `good first issue`, `help wanted`, `documentation`, `bug`, `enhancement`, `testing`, `tooling`, `onboarding`, `performance`, `graph`, `retrieval`, `windows`, `release`, `security`, `needs-triage`, `blocked`
 - Suggested files: `.github/labels.yml`, `scripts/`, `README.md`
@@ -17,7 +19,23 @@ Status:
 - Maintainers can run it locally with `python3 scripts/sync_github_labels.py --dry-run`
 - The workflow also runs on pushes to `main` that change the label catalog or sync script
 
-## 2. Add a `doctor --json` mode
+### 2. Keep contributor-facing files out of the repo root
+
+- Problem: contributors should not have to guess whether a file belongs at the root, in docs, or in scripts.
+- Suggested files: `docs/repository-map.md`, `CONTRIBUTING.md`, `README.md`, `tests/test_repository_layout.py`
+- Acceptance criteria:
+  - Document which root-level files are intentional.
+  - Keep examples, docs, and utilities under their canonical folders.
+  - Add regression coverage so old root-level paths do not come back accidentally.
+- Suggested labels: `documentation`, `tooling`, `onboarding`
+
+Status:
+- Implemented by the root layout policy in `docs/repository-map.md`, `CONTRIBUTING.md`, and `README.md`
+- Guarded by `tests/test_repository_layout.py`
+
+## Open starter issues
+
+### 3. Add a `doctor --json` mode
 
 - Problem: `waggle-mcp doctor` is useful for humans, but automation and issue templates benefit from structured output.
 - Suggested files: `src/waggle/server.py`, `tests/test_server.py`, `docs/reference.md`
@@ -27,7 +45,7 @@ Status:
   - Cover the new mode with tests.
 - Suggested labels: `good first issue`, `enhancement`, `tooling`
 
-## 3. Improve Windows troubleshooting coverage
+### 4. Improve Windows troubleshooting coverage
 
 - Problem: the repo documents Windows UTF-8 constraints, but setup failures and path issues are still harder to diagnose than on macOS/Linux.
 - Suggested files: `docs/install/troubleshooting.md`, `docs/install/README.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`
@@ -37,7 +55,7 @@ Status:
   - Link the new section from the main install docs.
 - Suggested labels: `good first issue`, `documentation`, `windows`
 
-## 4. Add a focused Neo4j parity test pass
+### 5. Add a focused Neo4j parity test pass
 
 - Problem: the SQLite path has broader day-to-day coverage than the Neo4j implementation.
 - Suggested files: `src/waggle/neo4j_graph.py`, `tests/`
@@ -47,7 +65,7 @@ Status:
   - Document any intentionally unsupported behavior.
 - Suggested labels: `help wanted`, `testing`, `graph`
 
-## 5. Add screenshots for Graph Studio and setup flows
+### 6. Add screenshots for Graph Studio and setup flows
 
 - Problem: the repo explains the product well, but new users still have to imagine the UI and onboarding experience.
 - Suggested files: `README.md`, `assets/`, `docs/install/`
@@ -57,7 +75,7 @@ Status:
   - Update docs to reference the images cleanly.
 - Suggested labels: `good first issue`, `documentation`, `onboarding`
 
-## 6. Tighten issue triage docs for maintainers
+### 7. Tighten issue triage docs for maintainers
 
 - Problem: contributors can open issues, but maintainers do not yet have a documented triage loop for labels, reproduction, and follow-up.
 - Suggested files: `CONTRIBUTING.md`, `.github/labels.yml`, `docs/good-first-issues.md`

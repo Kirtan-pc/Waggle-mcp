@@ -1,0 +1,48 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_moved_contributor_files_do_not_reappear_at_repo_root() -> None:
+    old_root_files = [
+        "COMMERCIAL.md",
+        "TRAVERSAL_VERIFICATION.md",
+        "build_clean_oolong_dataset.py",
+        "check_overfitting.py",
+        "codex_config.example.toml",
+        "generate_oolong_dataset.py",
+        "patch_aggregate.py",
+    ]
+
+    for filename in old_root_files:
+        assert not (ROOT / filename).exists(), f"{filename} should not live at the repo root"
+
+
+def test_moved_contributor_files_exist_in_their_canonical_locations() -> None:
+    canonical_paths = [
+        ROOT / "docs" / "commercial.md",
+        ROOT / "docs" / "traversal-verification.md",
+        ROOT / "examples" / "codex_config.example.toml",
+        ROOT / "scripts" / "oolong" / "build_clean_oolong_dataset.py",
+        ROOT / "scripts" / "oolong" / "check_overfitting.py",
+        ROOT / "scripts" / "oolong" / "generate_oolong_dataset.py",
+        ROOT / "scripts" / "verification" / "patch_aggregate.py",
+    ]
+
+    for path in canonical_paths:
+        assert path.exists(), f"Missing canonical file: {path.relative_to(ROOT)}"
+
+
+def test_registry_and_distribution_manifests_remain_at_repo_root() -> None:
+    required_root_files = [
+        "glama.json",
+        "llms-install.txt",
+        "server.json",
+        "smithery.yaml",
+    ]
+
+    for filename in required_root_files:
+        assert (ROOT / filename).exists(), f"{filename} must remain at the repo root"

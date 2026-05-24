@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, TypeVar
 
-from retrieval.scorers.topic_relevance import TopicScore, score_topic_relevance
+from waggle.retrieval.scorers.topic_relevance import TopicScore, score_topic_relevance
 
 
 TOPIC_THRESHOLD = 0.35

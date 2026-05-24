@@ -98,4 +98,3 @@ def score_topic_relevance(
         lexical_overlap=lexical,
         combined=combined,
     )
-
