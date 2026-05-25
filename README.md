@@ -59,7 +59,7 @@ Recommended:
 
 Benchmark:
 
-- LongMemEval 500-case retrieval-only: `97.4% R@5`, `89.0% Exact@5` for `graph_raw` retrieval ([artifact](./tests/artifacts/longmemeval_500_summary.md))
+- LongMemEval 500-case retrieval-only: `97.4% R@5`, `89.0% Exact@5` for `graph_raw` retrieval
 
 VS Code extension features:
 

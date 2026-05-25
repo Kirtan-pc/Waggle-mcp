@@ -46,3 +46,15 @@ def test_registry_and_distribution_manifests_remain_at_repo_root() -> None:
 
     for filename in required_root_files:
         assert (ROOT / filename).exists(), f"{filename} must remain at the repo root"
+
+
+def test_app_surfaces_live_under_apps_directory() -> None:
+    expected_paths = [
+        ROOT / "apps" / "README.md",
+        ROOT / "apps" / "mcp" / "graph-ui" / "package.json",
+        ROOT / "apps" / "mcp" / "claude-desktop-extension" / "manifest.json",
+        ROOT / "apps" / "vscode-extension" / "package.json",
+    ]
+
+    for path in expected_paths:
+        assert path.exists(), f"Missing app surface path: {path.relative_to(ROOT)}"

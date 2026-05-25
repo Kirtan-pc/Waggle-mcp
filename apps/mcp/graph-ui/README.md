@@ -1,4 +1,4 @@
-# Graph Studio — `graph-ui/`
+# Graph Studio — `apps/mcp/graph-ui/`
 
 Graph Studio is the browser-based visual graph editor bundled with Waggle. It is built with **Vite + React + Tailwind CSS** and served locally by `waggle-mcp edit-graph`.
 
@@ -19,7 +19,7 @@ Graph Studio is the browser-based visual graph editor bundled with Waggle. It is
 
 ```bash
 # From the repo root
-cd graph-ui
+cd apps/mcp/graph-ui
 npm install
 npm run dev
 ```
@@ -38,9 +38,9 @@ WAGGLE_MODEL=deterministic waggle-mcp serve --transport http
 The built assets are bundled into the Python package under `src/waggle/static/graph/`:
 
 ```bash
-cd graph-ui
+cd apps/mcp/graph-ui
 npm run build
-# Output goes to: ../src/waggle/static/graph/
+# Output goes to: ../../../src/waggle/static/graph/
 ```
 
 After building, reinstall the package to pick up the new assets:
@@ -74,7 +74,7 @@ pip install -e .
 
 ## Environment Variables (Dev)
 
-The dev server reads these from the shell or a `.env` file in `graph-ui/`:
+The dev server reads these from the shell or a `.env` file in `apps/mcp/graph-ui/`:
 
 | Variable | Default | Description |
 |---|---|---|

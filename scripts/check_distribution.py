@@ -66,9 +66,9 @@ def main() -> int:
         if doc_path.name != "README.md" and "serve --transport stdio" not in text and EXPECTED_ARGS not in text:
             failures.append(f"{doc_path.relative_to(ROOT)} does not document stdio startup")
 
-    package_json_path = ROOT / "packages" / "vscode-extension" / "package.json"
+    package_json_path = ROOT / "apps" / "vscode-extension" / "package.json"
     if not package_json_path.exists():
-        failures.append("Missing packages/vscode-extension/package.json")
+        failures.append("Missing apps/vscode-extension/package.json")
     else:
         package_json = json.loads(package_json_path.read_text())
         if package_json.get("name") != "waggle-memory":
@@ -78,9 +78,9 @@ def main() -> int:
     if not workflow_path.exists():
         failures.append("Missing .github/workflows/release-binaries.yml")
 
-    claude_extension_manifest = ROOT / "packages" / "claude-desktop-extension" / "manifest.json"
+    claude_extension_manifest = ROOT / "apps" / "mcp" / "claude-desktop-extension" / "manifest.json"
     if not claude_extension_manifest.exists():
-        failures.append("Missing packages/claude-desktop-extension/manifest.json")
+        failures.append("Missing apps/mcp/claude-desktop-extension/manifest.json")
 
     markdown_link_pattern = re.compile(r"\[[^\]]+\]\((?!https?://|mailto:|#)([^)]+)\)")
     for markdown_path in [ROOT / "README.md", *sorted((ROOT / "docs").rglob("*.md"))]:

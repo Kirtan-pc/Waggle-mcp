@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: packages/claude-desktop-extension
+        working-directory: apps/mcp/claude-desktop-extension
 
     steps:
       - name: Checkout source
@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: packages/claude-desktop-extension/package-lock.json
+          cache-dependency-path: apps/mcp/claude-desktop-extension/package-lock.json
 
       - name: Install dependencies
         run: npm install
@@ -40,10 +40,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: waggle-claude-desktop-extension
-          path: packages/claude-desktop-extension/*.mcpb
+          path: apps/mcp/claude-desktop-extension/*.mcpb
 
       - name: Upload MCPB to GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: packages/claude-desktop-extension/*.mcpb
+          files: apps/mcp/claude-desktop-extension/*.mcpb

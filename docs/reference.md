@@ -480,7 +480,10 @@ waggle-mcp/
 ├── deploy/
 ├── docs/
 ├── scripts/
-├── graph-ui/
+├── apps/
+│   ├── mcp/graph-ui/
+│   ├── mcp/claude-desktop-extension/
+│   └── vscode-extension/
 ├── src/waggle/
 ├── tests/
 ├── Dockerfile

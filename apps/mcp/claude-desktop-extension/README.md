@@ -28,7 +28,7 @@ This bundle still expects `waggle-mcp` to already be installed on the host machi
 Anthropic’s current Desktop Extensions packaging flow uses the `mcpb` toolchain:
 
 ```bash
-cd packages/claude-desktop-extension
+cd apps/mcp/claude-desktop-extension
 npm install
 npm run pack
 ```
@@ -36,7 +36,7 @@ npm run pack
 To validate locally without producing the final archive:
 
 ```bash
-cd packages/claude-desktop-extension
+cd apps/mcp/claude-desktop-extension
 npm install
 npm run validate
 ```
@@ -45,7 +45,7 @@ npm run validate
 
 Waggle is already prepared for Claude in two ways:
 
-- Claude Code via the MCP commands documented in [docs/install/claude-code.md](../../docs/install/claude-code.md)
-- Claude Desktop via this `.mcpb` bundle or the manual config in [docs/install/claude-desktop.md](../../docs/install/claude-desktop.md)
+- Claude Code via the MCP commands documented in [docs/install/claude-code.md](../../../docs/install/claude-code.md)
+- Claude Desktop via this `.mcpb` bundle or the manual config in [docs/install/claude-desktop.md](../../../docs/install/claude-desktop.md)
 
 For the official Claude Desktop extension directory, Anthropic currently asks developers to submit interest through its desktop extensions intake process.

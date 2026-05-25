@@ -28,6 +28,7 @@ Expected root-level categories:
 
 Everything else should usually live under one of these folders:
 
+- `apps/` for user-facing product surfaces such as the MCP UI bundles and editor extensions
 - `docs/` for narrative documentation
 - `examples/` for user-facing examples and sample configs
 - `scripts/` for operational, benchmark, and one-off utilities
@@ -67,8 +68,8 @@ These files sit on major code paths. A small change here can break multiple tool
 ### Avoid unless your issue is specifically about them
 
 - `src/rlm/**`
-- `packages/vscode-extension/package-lock.json`
-- `graph-ui/node_modules/**`
+- `apps/vscode-extension/package-lock.json`
+- `apps/mcp/graph-ui/node_modules/**`
 - generated build outputs such as `.vsix`, packaged bundles, local exports, and transient debug artifacts
 
 Reasons:
@@ -273,7 +274,7 @@ What this feature does:
 
 Primary files:
 - `src/waggle/graph_ui.py`
-- `graph-ui/**`
+- `apps/mcp/graph-ui/**`
 - `assets/**`
 
 Change here when:
@@ -282,7 +283,7 @@ Change here when:
 - The Graph Studio flow needs improvement
 
 Tests and checks:
-- Read `graph-ui/README.md`
+- Read `apps/mcp/graph-ui/README.md`
 - If changing frontend code, verify the UI manually after the change
 
 Blast radius:
@@ -303,8 +304,8 @@ Primary files:
 - `.github/workflows/package-claude-desktop-extension.yml`
 - `.github/workflows/release-binaries.yml`
 - `.github/workflows/publish-image.yml`
-- `packages/vscode-extension/**`
-- `packages/claude-desktop-extension/**`
+- `apps/vscode-extension/**`
+- `apps/mcp/claude-desktop-extension/**`
 
 Change here when:
 - Release automation is broken
@@ -362,7 +363,7 @@ Use this when you already know you are inside `src/waggle` and need a quick expl
 | `examples/` | Example config and sample usage. | Safe for docs-oriented contributions. |
 | `deploy/` | Infra manifests and observability helpers. | Touch only if your issue is deployment-specific. |
 | `templates/waggle-plus/` | Template/package material. | Treat as distribution-facing. Keep changes intentional. |
-| `graph-ui/node_modules/` | Installed frontend dependencies. | Do not edit by hand. |
+| `apps/mcp/graph-ui/node_modules/` | Installed frontend dependencies. | Do not edit by hand. |
 
 ## If you change X, also check Y
 
@@ -379,7 +380,7 @@ Use this when you already know you are inside `src/waggle` and need a quick expl
 - Making a broad change in `server.py` without reading the matching tests first.
 - Changing vendored `src/rlm/**` code for a problem that actually lives in `recursive_context.py`.
 - Updating behavior without updating the corresponding docs under `docs/install/`, `docs/reference.md`, or `docs/hooks.md`.
-- Treating `graph-ui/node_modules/**` as repository source.
+- Treating `apps/mcp/graph-ui/node_modules/**` as repository source.
 
 ## Recommended first reads by goal
 

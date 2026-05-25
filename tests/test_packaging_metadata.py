@@ -52,3 +52,9 @@ def test_package_version_matches_pyproject() -> None:
         "0.1.14",
         "0.0.1",
     }
+
+
+def test_app_package_manifests_exist_in_new_locations() -> None:
+    assert (ROOT / "apps" / "vscode-extension" / "package.json").exists()
+    assert (ROOT / "apps" / "mcp" / "claude-desktop-extension" / "manifest.json").exists()
+    assert (ROOT / "apps" / "mcp" / "graph-ui" / "package.json").exists()
