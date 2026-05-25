@@ -7,7 +7,6 @@ import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-
 TOKEN_RE = re.compile(r"[a-z0-9]+")
 STOPWORDS = {
     "a",
@@ -37,11 +36,7 @@ class TopicScore:
 
 def tokenize(text: str) -> set[str]:
     """Return normalized content tokens, excluding small query stopwords."""
-    return {
-        token
-        for token in TOKEN_RE.findall(text.lower())
-        if token and token not in STOPWORDS
-    }
+    return {token for token in TOKEN_RE.findall(text.lower()) if token and token not in STOPWORDS}
 
 
 def lexical_overlap(query: str, document: str) -> float:

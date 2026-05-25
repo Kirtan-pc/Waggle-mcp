@@ -4,7 +4,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "sync_github_labels.py"
 SPEC = importlib.util.spec_from_file_location("sync_github_labels", MODULE_PATH)
 assert SPEC and SPEC.loader

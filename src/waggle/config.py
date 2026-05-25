@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,6 +14,35 @@ DEFAULT_DB_PATH = "~/.waggle/waggle.db"
 STARTUP_MODE_FAST = "fast"  # skip ML warmup; schema/inspection only
 STARTUP_MODE_NORMAL = "normal"  # background warmup (default)
 STARTUP_MODE_STRICT = "strict"  # block until embeddings ready before serving
+
+
+def _discover_codex_waggle_db_path(home: Path | None = None) -> str | None:
+    """Reuse Codex's configured Waggle DB path when present.
+
+    This keeps repo-launched commands like `waggle-mcp edit-graph` pointed at the
+    same SQLite file the Codex MCP server is already using, instead of silently
+    falling back to the historical `~/.waggle/waggle.db` default.
+    """
+
+    root = home or Path.home()
+    config_path = root / ".codex" / "config.toml"
+    if not config_path.exists():
+        return None
+    try:
+        payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    db_path = payload.get("mcp_servers", {}).get("waggle", {}).get("env", {}).get("WAGGLE_DB_PATH")
+    if not isinstance(db_path, str) or not db_path.strip():
+        return None
+    return str(Path(db_path).expanduser())
+
+
+def resolve_default_db_path() -> str:
+    configured = _discover_codex_waggle_db_path()
+    if configured:
+        return configured
+    return DEFAULT_DB_PATH
 
 
 @dataclass(slots=True)
@@ -65,7 +95,7 @@ class AppConfig:
             backend=os.environ.get("WAGGLE_BACKEND", "sqlite").strip().lower(),
             transport=os.environ.get("WAGGLE_TRANSPORT", "stdio").strip().lower(),
             model_name=os.environ.get("WAGGLE_MODEL", "all-MiniLM-L6-v2"),
-            db_path=os.environ.get("WAGGLE_DB_PATH", DEFAULT_DB_PATH),
+            db_path=os.environ.get("WAGGLE_DB_PATH") or resolve_default_db_path(),
             default_tenant_id=os.environ.get("WAGGLE_DEFAULT_TENANT_ID", "local-default").strip(),
             http_host=os.environ.get("WAGGLE_HTTP_HOST", "0.0.0.0"),
             http_port=int(resolved_http_port),
