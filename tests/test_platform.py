@@ -621,6 +621,7 @@ def test_http_admin_retention_and_audit_endpoints(tmp_path: Path) -> None:
         assert audit.status_code == 200
         assert audit.json()[0]["event_type"] == "retention.policy.updated"
 
+
 def test_graph_create_edge_rejects_invalid_weight(tmp_path: Path) -> None:
     graph = make_graph(tmp_path)
     app_server = WaggleServer(graph=graph, config=make_http_config(tmp_path))
