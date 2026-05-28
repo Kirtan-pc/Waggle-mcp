@@ -34,7 +34,7 @@ jobs:
 
   # ── Tests ─────────────────────────────────────────────────────────────────
   test:
-    name: Test (Python ${{ matrix.python-version }})
+    name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
