@@ -187,6 +187,7 @@ def test_parser_accepts_graph_editor_commands() -> None:
     clear_session_args = parser.parse_args(["clear-session", "--session-id", "thread-1", "--yes"])
     clear_project_args = parser.parse_args(["clear-project", "--project", "MCP", "--yes"])
     clear_all_args = parser.parse_args(["clear-all", "--yes"])
+    doctor_json_args = parser.parse_args(["doctor", "--json"])
     push_args = parser.parse_args(["push", "--client-secret-path", "client.json", "--folder-id", "folder123"])
     pull_args = parser.parse_args(["pull", "file123", "--client-secret-path", "client.json"])
     share_args = parser.parse_args(["share", "file123", "--client-secret-path", "client.json"])
@@ -230,6 +231,8 @@ def test_parser_accepts_graph_editor_commands() -> None:
     assert clear_project_args.yes is True
     assert clear_all_args.command == "clear-all"
     assert clear_all_args.yes is True
+    assert doctor_json_args.command == "doctor"
+    assert doctor_json_args.json_output is True
     assert push_args.command == "push"
     assert push_args.encrypt is True
     assert push_args.folder_id == "folder123"
@@ -344,6 +347,151 @@ def test_doctor_fix_reembeds_mixed_embedding_model_ids(
     repaired = graph.get_embedding_store_health()
     assert repaired["mixed_models"] is False
     assert repaired["transcript_stale_rows"] == 0
+
+
+def test_doctor_json_output_reports_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    home = tmp_path / "home"
+    appdata = home / "AppData" / "Roaming"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("APPDATA", str(appdata))
+
+    config = AppConfig(
+        backend="sqlite",
+        transport="stdio",
+        model_name="deterministic",
+        db_path=str(tmp_path / "server-memory.db"),
+        default_tenant_id="local-default",
+        http_host="127.0.0.1",
+        http_port=8080,
+        log_level="INFO",
+        rate_limit_rpm=120,
+        write_rate_limit_rpm=60,
+        max_concurrent_requests=8,
+        max_payload_bytes=1024 * 1024,
+        request_timeout_seconds=30,
+        export_dir=None,
+        neo4j_uri="",
+        neo4j_username="",
+        neo4j_password="",
+        neo4j_database="",
+    )
+
+    exit_code = _run_doctor(config, json_output=True)
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 1
+    assert captured.err == ""
+    assert "\x1b[" not in captured.out
+    assert payload["schema_version"] == 1
+    assert payload["platform"]
+    assert payload["status"] == "issues_found"
+    assert payload["warnings"] == []
+    assert payload["fix_requested"] is False
+    assert any("No MCP client config file" in issue for issue in payload["issues"])
+    assert "Deterministic model — no download needed" in payload["successful_checks"]
+    assert "waggle-mcp doctor" not in captured.out
+
+
+def test_doctor_json_output_ok_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    home = tmp_path / "home"
+    appdata = home / "AppData" / "Roaming"
+    db_path = tmp_path / "server-memory.db"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("APPDATA", str(appdata))
+    write_waggle_codex_config(home, db_path)
+
+    config = AppConfig(
+        backend="sqlite",
+        transport="stdio",
+        model_name="deterministic",
+        db_path=str(db_path),
+        default_tenant_id="local-default",
+        http_host="127.0.0.1",
+        http_port=8080,
+        log_level="INFO",
+        rate_limit_rpm=120,
+        write_rate_limit_rpm=60,
+        max_concurrent_requests=8,
+        max_payload_bytes=1024 * 1024,
+        request_timeout_seconds=30,
+        export_dir=None,
+        neo4j_uri="",
+        neo4j_username="",
+        neo4j_password="",
+        neo4j_database="",
+    )
+
+    exit_code = _run_doctor(config, json_output=True)
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert captured.err == ""
+    assert "\x1b[" not in captured.out
+    assert payload["schema_version"] == 1
+    assert payload["status"] == "ok"
+    assert payload["issues"] == []
+    assert payload["warnings"] == []
+    assert payload["fix_requested"] is False
+    assert any(item.startswith("Waggle found in:") for item in payload["successful_checks"])
+
+
+def test_doctor_json_output_warning_status_for_uncached_model(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    home = tmp_path / "home"
+    appdata = home / "AppData" / "Roaming"
+    db_path = tmp_path / "server-memory.db"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("APPDATA", str(appdata))
+    write_waggle_codex_config(home, db_path)
+
+    config = AppConfig(
+        backend="sqlite",
+        transport="stdio",
+        model_name="sentence-transformers/not-cached-for-waggle-test",
+        db_path=str(db_path),
+        default_tenant_id="local-default",
+        http_host="127.0.0.1",
+        http_port=8080,
+        log_level="INFO",
+        rate_limit_rpm=120,
+        write_rate_limit_rpm=60,
+        max_concurrent_requests=8,
+        max_payload_bytes=1024 * 1024,
+        request_timeout_seconds=30,
+        export_dir=None,
+        neo4j_uri="",
+        neo4j_username="",
+        neo4j_password="",
+        neo4j_database="",
+    )
+
+    exit_code = _run_doctor(config, json_output=True)
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert payload["status"] == "warnings"
+    assert payload["issues"] == []
+    assert any("not found in cache" in warning for warning in payload["warnings"])
 
 
 def test_create_and_list_api_keys_cli_redacts_hash(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -271,6 +271,71 @@ For a built-in CLI explainer, run:
 waggle-mcp features
 ```
 
+To check a local installation, run:
+
+```bash
+waggle-mcp doctor
+```
+
+Automation and bug reports can request structured output:
+
+```bash
+waggle-mcp doctor --json
+```
+
+Example output:
+
+```json
+{
+  "fix_requested": false,
+  "issues": [
+    "No MCP client config file contains a 'waggle' server entry. Run 'waggle-mcp setup --yes' to create one, or add it manually."
+  ],
+  "platform": "linux",
+  "schema_version": 1,
+  "status": "issues_found",
+  "successful_checks": [
+    "DB directory writable",
+    "Deterministic model — no download needed",
+    "Embedding store model IDs consistent",
+    "Startup mode: normal"
+  ],
+  "warnings": []
+}
+```
+
+Successful runs use the same schema:
+
+```json
+{
+  "fix_requested": false,
+  "issues": [],
+  "platform": "linux",
+  "schema_version": 1,
+  "status": "ok",
+  "successful_checks": [
+    "Waggle found in: Codex",
+    "DB directory writable",
+    "Deterministic model — no download needed",
+    "Embedding store model IDs consistent",
+    "Startup mode: normal"
+  ],
+  "warnings": []
+}
+```
+
+Doctor JSON fields:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `schema_version` | integer | Version of the doctor JSON contract. The initial schema is `1`. |
+| `platform` | string | Python `sys.platform` value for the host that produced the report. |
+| `status` | string | `ok` when no issues or warnings were found, `warnings` when non-blocking warnings were found, otherwise `issues_found`. |
+| `issues` | string array | Blocking problems that should be fixed before relying on the installation. |
+| `warnings` | string array | Non-blocking conditions such as an uncached embedding model that can slow the first semantic call. |
+| `successful_checks` | string array | Human-readable names of checks that passed. The exact list can vary by platform. |
+| `fix_requested` | boolean | Whether the `--fix` flag was passed for this run. |
+
 ## Automatic memory orchestration
 
 For production behavior where the model/runtime handles memory calls automatically (instead of users manually invoking tools), use the event-driven orchestration pattern documented in [memory-orchestration.md](./memory-orchestration.md).
