@@ -108,6 +108,7 @@ class CandidateMemory:
     observed_at: datetime | None = None
     score: float = 0.0
     layer_scores: dict[str, float] = field(default_factory=dict)
+    score_explanation: dict[str, float] = field(default_factory=dict)
     reasoning_from_reranker: str = ""
 
 
@@ -628,6 +629,16 @@ class HybridRetriever:
                 + self.config.graph_weight * item.layer_scores.get("graph_expansion", 0.0)
             )
             item.score = fused * ((1.0 - self.config.recency_weight) + (self.config.recency_weight * decay))
+            raw = {
+                "vector_transcript": self.config.vector_weight * item.layer_scores.get("vector_transcript", 0.0),
+                "vector_node": self.config.vector_weight * item.layer_scores.get("vector_node", 0.0),
+                "bm25": self.config.bm25_weight * item.layer_scores.get("bm25", 0.0),
+                "graph_expansion": self.config.graph_weight * item.layer_scores.get("graph_expansion", 0.0),
+                "recency": self.config.recency_weight * decay,
+                }
+            total = sum(raw.values()) or 1.0
+            item.score_explanation = {k: round(v / total, 4) for k, v in raw.items()}
+            item.score_explanation["final_score"] = round(item.score, 4)
             if item.source == "node" and item.turn_pair_id and item.transcript_text:
                 item.source = "both"
                 item.content = f"{item.transcript_text}\n{item.content}"
