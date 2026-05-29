@@ -566,22 +566,17 @@ export function App() {
   };
 
   const deleteEdge = async (edgeId) => {
-  if (boot.sampleMode || readOnly) {
-    return;
-  }
-
-  await pushHistory();
-
-  await apiRequest(`/api/graph/edges/${edgeId}`, {
-    method: "DELETE"
-  });
-
-  await loadSnapshot(scope);
-
-  setSelectedEdgeId("");
-
-  setToast("Edge deleted.");
-};
+    if (boot.sampleMode || readOnly) {
+      return;
+    }
+    await pushHistory();
+    await apiRequest(`/api/graph/edges/${edgeId}`, {
+      method: "DELETE"
+    });
+    await loadSnapshot(scope);
+    setSelectedEdgeId("");
+    setToast("Edge deleted.");
+  };
 
   const mergeNode = async (sourceId) => {
     if (!selectedNodeId || selectedNodeId === sourceId || boot.sampleMode) {
@@ -678,9 +673,14 @@ export function App() {
 
   const exportGraph = async (format) => {
     if (boot.sampleMode || readOnly) {
-      setToast("Sample mode only. Export is disabled.");
+      setToast(
+        boot.sampleMode
+          ? "Sample mode. Export is disabled."
+          : "Read-only mode. Export is disabled."
+      );
       return;
     }
+
     const query = new URLSearchParams({ ...scope, format });
     const response = await fetch(`/api/graph/export?${query.toString()}`);
     const blob = await response.blob();
@@ -814,23 +814,27 @@ export function App() {
       .catch((error) => setToast(error.message));
   }, [abhiDiff?.leftBase64, abhiDiff?.rightBase64, boot.sampleMode]);
 
+  const activeSessions = new Set(filters.sessions || []);
+  const activeAgents = new Set(filters.agents || []);
+  const activeProjects = new Set(filters.projects || []);
+
   const visibleTranscriptRecords = transcriptSearch.trim()
     ? transcriptHits
     : transcriptRecords.filter((record) => {
-      const activeSessions = new Set(filters.sessions || []);
-      const activeAgents = new Set(filters.agents || []);
-      const activeProjects = new Set(filters.projects || []);
-      if (activeSessions.size && !activeSessions.has(record.session_id || "")) {
-        return false;
-      }
-      if (activeAgents.size && !activeAgents.has(record.agent_id || "")) {
-        return false;
-      }
-      if (activeProjects.size && !activeProjects.has(record.project || "")) {
-        return false;
-      }
-      return true;
-    });
+        if (activeSessions.size && !activeSessions.has(record.session_id || "")) {
+          return false;
+        }
+
+        if (activeAgents.size && !activeAgents.has(record.agent_id || "")) {
+          return false;
+        }
+
+        if (activeProjects.size && !activeProjects.has(record.project || "")) {
+          return false;
+        }
+
+        return true;
+      });
 
   const selectedGraphNode = graph.nodes.find((node) => node.id === selectedNodeId) || null;
   const selectedPair = transcriptPairs.find((pair) => pair.id === selectedNodeId) || null;
