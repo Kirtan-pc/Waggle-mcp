@@ -271,6 +271,71 @@ For a built-in CLI explainer, run:
 waggle-mcp features
 ```
 
+To check a local installation, run:
+
+```bash
+waggle-mcp doctor
+```
+
+Automation and bug reports can request structured output:
+
+```bash
+waggle-mcp doctor --json
+```
+
+Example output:
+
+```json
+{
+  "fix_requested": false,
+  "issues": [
+    "No MCP client config file contains a 'waggle' server entry. Run 'waggle-mcp setup --yes' to create one, or add it manually."
+  ],
+  "platform": "linux",
+  "schema_version": 1,
+  "status": "issues_found",
+  "successful_checks": [
+    "DB directory writable",
+    "Deterministic model — no download needed",
+    "Embedding store model IDs consistent",
+    "Startup mode: normal"
+  ],
+  "warnings": []
+}
+```
+
+Successful runs use the same schema:
+
+```json
+{
+  "fix_requested": false,
+  "issues": [],
+  "platform": "linux",
+  "schema_version": 1,
+  "status": "ok",
+  "successful_checks": [
+    "Waggle found in: Codex",
+    "DB directory writable",
+    "Deterministic model — no download needed",
+    "Embedding store model IDs consistent",
+    "Startup mode: normal"
+  ],
+  "warnings": []
+}
+```
+
+Doctor JSON fields:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `schema_version` | integer | Version of the doctor JSON contract. The initial schema is `1`. |
+| `platform` | string | Python `sys.platform` value for the host that produced the report. |
+| `status` | string | `ok` when no issues or warnings were found, `warnings` when non-blocking warnings were found, otherwise `issues_found`. |
+| `issues` | string array | Blocking problems that should be fixed before relying on the installation. |
+| `warnings` | string array | Non-blocking conditions such as an uncached embedding model that can slow the first semantic call. |
+| `successful_checks` | string array | Human-readable names of checks that passed. The exact list can vary by platform. |
+| `fix_requested` | boolean | Whether the `--fix` flag was passed for this run. |
+
 ## Automatic memory orchestration
 
 For production behavior where the model/runtime handles memory calls automatically (instead of users manually invoking tools), use the event-driven orchestration pattern documented in [memory-orchestration.md](./memory-orchestration.md).
@@ -309,43 +374,7 @@ A reusable copy also lives in [automatic-memory-rules.md](./automatic-memory-rul
 
 ## Environment variables
 
-### Core
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WAGGLE_BACKEND` | `sqlite` | `sqlite` or `neo4j` |
-| `WAGGLE_TRANSPORT` | `stdio` | `stdio` or `http` |
-| `WAGGLE_MODEL` | `all-MiniLM-L6-v2` | sentence-transformers model |
-| `WAGGLE_DEFAULT_TENANT_ID` | `local-default` | default tenant |
-| `WAGGLE_EXPORT_DIR` | — | optional export directory |
-
-### SQLite
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WAGGLE_DB_PATH` | `~/.waggle/waggle.db` | path to the SQLite file |
-
-### HTTP service
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WAGGLE_HTTP_HOST` | `0.0.0.0` | bind host |
-| `WAGGLE_HTTP_PORT` | `8080` | bind port |
-| `WAGGLE_LOG_LEVEL` | `INFO` | log level |
-| `WAGGLE_RATE_LIMIT_RPM` | `120` | global rate limit |
-| `WAGGLE_WRITE_RATE_LIMIT_RPM` | `60` | write-tool rate limit |
-| `WAGGLE_MAX_CONCURRENT_REQUESTS` | `8` | concurrency cap |
-| `WAGGLE_MAX_PAYLOAD_BYTES` | `1048576` | max request size |
-| `WAGGLE_REQUEST_TIMEOUT_SECONDS` | `30` | per-request timeout |
-
-### Neo4j
-
-| Variable | Description |
-|----------|-------------|
-| `WAGGLE_NEO4J_URI` | Bolt URI, e.g. `bolt://localhost:7687` |
-| `WAGGLE_NEO4J_USERNAME` | Neo4j username |
-| `WAGGLE_NEO4J_PASSWORD` | Neo4j password |
-| `WAGGLE_NEO4J_DATABASE` | Neo4j database name |
+See [Environment variables](./environment-variables.md) for the complete `WAGGLE_*` configuration reference, including defaults, value types, when each variable applies, and example values.
 
 ### Extraction
 
