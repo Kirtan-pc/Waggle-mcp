@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import sqlite3
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -134,8 +134,9 @@ def test_superseded_nodes_rank_below_current_version(tmp_path: Path) -> None:
 
 def test_regression_recency_ranks_recent_transcript_higher(tmp_path: Path) -> None:
     graph = make_graph(tmp_path)
-    recent_time = datetime(2026, 5, 15, tzinfo=UTC)
-    old_time = datetime(2025, 1, 1, tzinfo=UTC)
+    now = datetime.now(UTC)
+    recent_time = now - timedelta(days=1)
+    old_time = now - timedelta(days=90)
     with graph._lock, graph._connect() as connection:
         graph._store_transcript_record(
             connection,
