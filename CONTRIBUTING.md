@@ -195,6 +195,29 @@ Portable memory snapshots. JSON underneath with optional AES-256-GCM encryption,
 
 ### WAGGLE_MODEL=deterministic
 The offline-safe embedding mode. Uses SHA-256 hashing to produce a 256-dim float32 vector. Slightly lower retrieval quality than sentence-transformers but instant startup and zero network dependency. **Use this in tests.**
+### WAGGLE_EMBEDDING_BACKEND
+
+Controls which backend Sentence Transformers uses for embedding inference.
+
+**Default:** `pytorch`
+
+**Allowed values:**
+- `pytorch`
+- `onnx`
+
+Example:
+
+```bash
+export WAGGLE_EMBEDDING_BACKEND=onnx
+```
+
+### ONNX Runtime Requirements
+
+Using `WAGGLE_EMBEDDING_BACKEND=onnx` requires ONNX Runtime dependencies to be installed.
+
+If ONNX dependencies are unavailable, model initialization may fail or fall back to the default backend.
+
+Use the default `pytorch` backend unless you specifically want ONNX Runtime inference.
 
 ---
 
