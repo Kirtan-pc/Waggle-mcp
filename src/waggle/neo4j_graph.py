@@ -1890,7 +1890,6 @@ def update_node(
     valid_to: datetime | None = None,
     evidence_records: list[EvidenceRecord] | None = None,
 ) -> Node:
-
     if (
         content is None
         and label is None
