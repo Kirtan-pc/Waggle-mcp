@@ -332,7 +332,7 @@ class TestIssue67:
         a_inside = threading.Event()
         b_can_start = threading.Event()
 
-        def thread_a() -> None:
+        def thread_c() -> None:
             with lock.read():
                 a_inside.set()
                 b_can_start.wait(timeout=2)
@@ -342,7 +342,7 @@ class TestIssue67:
                 except RuntimeError:
                     pass
 
-        def thread_b() -> None:
+        def thread_d() -> None:
             with lock.read():
                 b_read_ok.set()
 
