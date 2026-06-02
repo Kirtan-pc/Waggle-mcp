@@ -36,6 +36,15 @@ pip install -e ".[dev]"
 waggle-mcp --help
 ```
 
+### Before opening an issue
+
+Install Waggle from PyPI first and reproduce the problem with the shipped package:
+
+- PyPI: https://pypi.org/project/waggle-mcp/
+- VS Code extension: https://marketplace.visualstudio.com/items?itemName=Abhigyan-Shekhar.waggle-memory
+
+This is the expected baseline for issue creation. It helps contributors and maintainers confirm whether the issue reproduces in the published package and the supported editor integration before debugging source-level changes.
+
 ## First Contribution Paths
 
 If you are new to the repo, start here before picking an issue:
@@ -213,6 +222,10 @@ The offline-safe embedding mode. Uses SHA-256 hashing to produce a 256-dim float
 ## How to Submit a PR
 
 1. **Open an issue first** for bugs, doc gaps, or feature proposals — especially larger changes.
+   Install and verify the current PyPI package and the VS Code extension before filing:
+   `https://pypi.org/project/waggle-mcp/`
+   `https://marketplace.visualstudio.com/items?itemName=Abhigyan-Shekhar.waggle-memory`
+   If an issue does not include a screenshot of the problem, it will not be considered.
 2. **Fork and branch** from `main`. Use a descriptive branch name like `fix/dockerfile-version` or `feat/dry-run-import`.
 3. **Keep PRs focused.** One logical change per PR makes review faster.
 4. **Write a clear description.** Explain *what* changed, *why* it was needed, and how you verified it. Link the issue with `Fixes #123` or explain why no issue is needed.
