@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from waggle.models import (
     ConflictRecord,
@@ -12,6 +12,7 @@ from waggle.models import (
     TimelineResult,
 )
 from waggle.serializer import (
+    _format_updated_ago,
     serialize_observation_result,
     serialize_recent_nodes,
     serialize_stats,
@@ -47,6 +48,41 @@ def test_serialize_recent_nodes_nonempty():
     )
     output = serialize_recent_nodes([node])
     assert "My Decision" in output
+
+
+def test_format_updated_ago_under_one_minute():
+    timestamp = datetime.now(UTC) - timedelta(seconds=30)
+    assert _format_updated_ago(timestamp) == "just now"
+
+
+def test_format_updated_ago_at_one_minute_boundary():
+    timestamp = datetime.now(UTC) - timedelta(seconds=60)
+    assert _format_updated_ago(timestamp) == "1 minute ago"
+
+
+def test_format_updated_ago_between_one_minute_and_one_hour():
+    timestamp = datetime.now(UTC) - timedelta(seconds=125)
+    assert _format_updated_ago(timestamp) == "2 minutes ago"
+
+
+def test_format_updated_ago_at_one_hour_boundary():
+    timestamp = datetime.now(UTC) - timedelta(seconds=3600)
+    assert _format_updated_ago(timestamp) == "1 hour ago"
+
+
+def test_format_updated_ago_between_one_hour_and_one_day():
+    timestamp = datetime.now(UTC) - timedelta(seconds=7200)
+    assert _format_updated_ago(timestamp) == "2 hours ago"
+
+
+def test_format_updated_ago_at_one_day_boundary():
+    timestamp = datetime.now(UTC) - timedelta(seconds=86400)
+    assert _format_updated_ago(timestamp) == "1 day ago"
+
+
+def test_format_updated_ago_over_one_day():
+    timestamp = datetime.now(UTC) - timedelta(seconds=172800)
+    assert _format_updated_ago(timestamp) == "2 days ago"
 
 
 # 3. serialize_observation_result
