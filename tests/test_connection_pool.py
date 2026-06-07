@@ -496,6 +496,47 @@ def test_memory_graph_operations_do_not_open_new_connections(tmp_path: Path, mon
         graph.close()
 
 
+def test_retrieval_modes_reuse_pooled_connections(tmp_path: Path, monkeypatch) -> None:
+    # Exercises the HybridRetriever hot paths (hybrid + verbatim), which the
+    # default "graph" mode does not reach. Seed transcript + node data first so
+    # those layers actually run instead of short-circuiting on an empty store.
+    graph = _make_graph(tmp_path)
+    try:
+        graph.observe_conversation(
+            user_message="The launch codeword is saffron-badger.",
+            assistant_response="Understood, the codeword saffron-badger is recorded.",
+            project="alpha",
+            session_id="sess-1",
+        )
+
+        # Spy (rather than raise) so the check holds even if a retrieval layer
+        # swallows exceptions: any fresh _connect() after pool construction is a
+        # regression, regardless of whether it surfaces as an error.
+        connect_calls = {"n": 0}
+        real_connect = graph._connect
+
+        def _spy(*args: object, **kwargs: object) -> sqlite3.Connection:
+            connect_calls["n"] += 1
+            return real_connect(*args, **kwargs)
+
+        monkeypatch.setattr(graph, "_connect", _spy)
+
+        for mode in ("hybrid", "verbatim"):
+            result = graph.query(
+                query="what is the launch codeword",
+                project="alpha",
+                retrieval_mode=mode,
+                max_nodes=5,
+            )
+            assert result is not None
+            assert result.retrieval_mode == mode
+
+        assert connect_calls["n"] == 0, "retrieval opened a fresh connection instead of using the pool"
+        assert graph._pool.available() == graph._pool.size
+    finally:
+        graph.close()
+
+
 def test_memory_graph_is_a_context_manager(tmp_path: Path) -> None:
     with MemoryGraph(tmp_path / "cm.db", FakeEmbeddingModel()) as graph:
         graph.add_node(label="inside", content="within the with block", node_type=NodeType.ENTITY)

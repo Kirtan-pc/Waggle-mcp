@@ -29,7 +29,12 @@ import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 
-__all__ = ["DEFAULT_POOL_SIZE", "ConnectionPoolClosedError", "SQLiteConnectionPool"]
+__all__ = [
+    "DEFAULT_CHECKOUT_TIMEOUT",
+    "DEFAULT_POOL_SIZE",
+    "ConnectionPoolClosedError",
+    "SQLiteConnectionPool",
+]
 
 #: Default number of connections kept in the pool.  WAL allows a single writer
 #: regardless of pool size, so this stays small on purpose.
@@ -78,8 +83,6 @@ class SQLiteConnectionPool:
     ) -> None:
         if size < 1:
             raise ValueError("Connection pool size must be at least 1.")
-        if checkout_timeout is not None and checkout_timeout < 0:
-            raise ValueError("checkout_timeout must be non-negative or None.")
         if checkout_timeout is not None and checkout_timeout < 0:
             raise ValueError("checkout_timeout must be non-negative or None.")
         self._size = size
