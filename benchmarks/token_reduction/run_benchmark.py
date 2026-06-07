@@ -13,33 +13,18 @@ def run():
     print("-" * 60)
 
     for file in SCENARIOS_DIR.glob("*.json"):
-        with open(file, "r", encoding="utf-8") as f:
+        with open(file, encoding="utf-8") as f:
             data = json.load(f)
 
         turns = data["turns"]
 
-        baseline = sum(
-            estimate_tokens(" ".join(turns[: i + 1]))
-            for i in range(len(turns))
-        )
+        baseline = sum(estimate_tokens(" ".join(turns[: i + 1])) for i in range(len(turns)))
 
-        waggle = sum(
-            estimate_tokens(turn)
-            for turn in turns
-        )
+        waggle = sum(estimate_tokens(turn) for turn in turns)
 
-        reduction = (
-            ((baseline - waggle) / baseline) * 100
-            if baseline
-            else 0
-        )
+        reduction = ((baseline - waggle) / baseline) * 100 if baseline else 0
 
-        print(
-            f"{data['name']:25} "
-            f"{baseline:<10} "
-            f"{waggle:<10} "
-            f"{reduction:.1f}%"
-        )
+        print(f"{data['name']:25} {baseline:<10} {waggle:<10} {reduction:.1f}%")
 
 
 if __name__ == "__main__":
