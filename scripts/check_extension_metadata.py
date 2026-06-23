@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 check_extension_metadata.py -- Claude Desktop Extension Metadata Validator.
 

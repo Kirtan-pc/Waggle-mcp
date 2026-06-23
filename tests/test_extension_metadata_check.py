@@ -17,7 +17,7 @@ SPEC.loader.exec_module(MODULE)
 def test_metadata_match(tmp_path: Path) -> None:
     manifest_file = tmp_path / "manifest.json"
     manifest_file.write_text(json.dumps({"version": "1.2.3"}), encoding="utf-8")
-    
+
     package_file = tmp_path / "package.json"
     package_file.write_text(json.dumps({"version": "1.2.3"}), encoding="utf-8")
 
@@ -28,7 +28,7 @@ def test_metadata_match(tmp_path: Path) -> None:
 def test_metadata_mismatch(tmp_path: Path) -> None:
     manifest_file = tmp_path / "manifest.json"
     manifest_file.write_text(json.dumps({"version": "1.2.3"}), encoding="utf-8")
-    
+
     package_file = tmp_path / "package.json"
     package_file.write_text(json.dumps({"version": "1.2.4"}), encoding="utf-8")
 
@@ -39,7 +39,7 @@ def test_metadata_mismatch(tmp_path: Path) -> None:
 def test_metadata_missing_version(tmp_path: Path) -> None:
     manifest_file = tmp_path / "manifest.json"
     manifest_file.write_text(json.dumps({}), encoding="utf-8")
-    
+
     package_file = tmp_path / "package.json"
     package_file.write_text(json.dumps({"version": "1.2.3"}), encoding="utf-8")
 
@@ -64,7 +64,7 @@ def test_metadata_missing_files(tmp_path: Path) -> None:
 def test_metadata_malformed_json(tmp_path: Path) -> None:
     manifest_file = tmp_path / "manifest.json"
     manifest_file.write_text("invalid json", encoding="utf-8")
-    
+
     package_file = tmp_path / "package.json"
     package_file.write_text(json.dumps({"version": "1.2.3"}), encoding="utf-8")
 
@@ -75,7 +75,7 @@ def test_metadata_malformed_json(tmp_path: Path) -> None:
 def test_main_entrypoint(tmp_path: Path) -> None:
     manifest_file = tmp_path / "manifest.json"
     manifest_file.write_text(json.dumps({"version": "1.0.0"}), encoding="utf-8")
-    
+
     package_file = tmp_path / "package.json"
     package_file.write_text(json.dumps({"version": "1.0.0"}), encoding="utf-8")
 
