@@ -3,6 +3,9 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    include: ["src/**/*.spec.js"]
+  },
   build: {
     outDir: "../../../src/waggle/static/graph",
     emptyOutDir: true,
