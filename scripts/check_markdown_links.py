@@ -5,6 +5,9 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 
+FENCED_CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
+INLINE_CODE_PATTERN = re.compile(r"`[^`\n]+`")
+
 LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 IGNORED_DIRS = {".venv", ".git", "node_modules"}
@@ -19,6 +22,10 @@ broken_links = []
 
 for md_file in markdown_files:
     text = md_file.read_text(encoding="utf-8")
+    
+    # Ignore Markdown examples inside code blocks and inline code spans.
+    text = FENCED_CODE_PATTERN.sub("", text)
+    text = INLINE_CODE_PATTERN.sub("", text)
 
     for match in LINK_PATTERN.finditer(text):
         link = match.group(1).strip()
