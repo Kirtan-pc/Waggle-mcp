@@ -72,6 +72,23 @@ def test_metadata_malformed_json(tmp_path: Path) -> None:
     assert exit_code == 2
 
 
+def test_metadata_non_dict_json(tmp_path: Path) -> None:
+    manifest_file = tmp_path / "manifest.json"
+    package_file = tmp_path / "package.json"
+
+    # manifest.json is a list, package.json is a dict
+    manifest_file.write_text(json.dumps([{"version": "1.2.3"}]), encoding="utf-8")
+    package_file.write_text(json.dumps({"version": "1.2.3"}), encoding="utf-8")
+    exit_code = MODULE.check_metadata(manifest_file, package_file)
+    assert exit_code == 2
+
+    # manifest.json is a dict, package.json is a string
+    manifest_file.write_text(json.dumps({"version": "1.2.3"}), encoding="utf-8")
+    package_file.write_text(json.dumps("version: 1.2.3"), encoding="utf-8")
+    exit_code = MODULE.check_metadata(manifest_file, package_file)
+    assert exit_code == 2
+
+
 def test_main_entrypoint(tmp_path: Path) -> None:
     manifest_file = tmp_path / "manifest.json"
     manifest_file.write_text(json.dumps({"version": "1.0.0"}), encoding="utf-8")

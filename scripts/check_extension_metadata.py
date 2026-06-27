@@ -47,10 +47,18 @@ def check_metadata(manifest_path: Path, package_path: Path, verbose: bool = Fals
         print(f"ERROR: Failed to parse manifest.json: {exc}", file=sys.stderr)
         return 2
 
+    if not isinstance(manifest_data, dict):
+        print("ERROR: manifest.json root must be a JSON object", file=sys.stderr)
+        return 2
+
     try:
         package_data = json.loads(package_path.read_text(encoding="utf-8"))
     except Exception as exc:
         print(f"ERROR: Failed to parse package.json: {exc}", file=sys.stderr)
+        return 2
+
+    if not isinstance(package_data, dict):
+        print("ERROR: package.json root must be a JSON object", file=sys.stderr)
         return 2
 
     manifest_version = manifest_data.get("version")
