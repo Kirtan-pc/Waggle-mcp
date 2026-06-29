@@ -402,7 +402,7 @@ class Neo4jMemoryGraph:
             record = session.run(
                 """
                 MERGE (t:GraphTenant {tenant_id: $tenant_id})
-                ON CREATE SET t.name = $name, t.status = 'active', t.created_at = $created_at
+                ON CREATE SET t.name = $name, t.status = 'active', t.created_at = $created_at, t.communities_stale = 1
                 ON MATCH SET t.name = CASE WHEN $name <> '' THEN $name ELSE t.name END
                 RETURN t.tenant_id AS tenant_id, t.name AS name, t.status AS status, t.created_at AS created_at
                 """,
@@ -415,6 +415,15 @@ class Neo4jMemoryGraph:
             name=record["name"] or "",
             status=record["status"],
             created_at=_parse_datetime(record["created_at"]),
+        )
+
+    def _mark_communities_stale(self, session: Any) -> None:
+        session.run(
+            """
+            MATCH (t:GraphTenant {tenant_id: $tenant_id})
+            SET t.communities_stale = 1
+            """,
+            tenant_id=self.tenant_id,
         )
 
     def _delete_label_batch(
@@ -3323,7 +3332,7 @@ def update_node(
             total_nodes_in_graph=total_nodes,
         )
 
-    def get_topics(self) -> TopicResult:
+    def get_topics(self, force_recompute: bool = False) -> TopicResult:
         with self._lock, self._session() as session:
             nodes = [
                 self._node_from_props(record["n"])
@@ -3334,8 +3343,40 @@ def update_node(
             ]
             if not nodes:
                 return TopicResult(clusters=[], total_clusters=0)
-            graph = self._load_graph(session).to_undirected()
-            partition = self._build_topic_partition(graph, nodes)
+
+            partition = None
+            if not force_recompute:
+                row = session.run(
+                    """
+                    MATCH (t:GraphTenant {tenant_id: $tenant_id})
+                    RETURN t.communities_stale AS communities_stale, t.cached_communities AS cached_communities
+                    """,
+                    tenant_id=self.tenant_id,
+                ).single()
+                if row and row["communities_stale"] == 0 and row["cached_communities"]:
+                    try:
+                        partition = json.loads(row["cached_communities"])
+                    except Exception:
+                        partition = None
+
+            if partition is not None:
+                # Validate cached partition keys match current nodes exactly.
+                # Fallback to recompute if there's any discrepancy.
+                node_ids_set = {node.id for node in nodes}
+                if set(partition.keys()) != node_ids_set:
+                    partition = None
+
+            if partition is None:
+                graph = self._load_graph(session).to_undirected()
+                partition = self._build_topic_partition(graph, nodes)
+                session.run(
+                    """
+                    MATCH (t:GraphTenant {tenant_id: $tenant_id})
+                    SET t.communities_stale = 0, t.cached_communities = $cached_communities
+                    """,
+                    tenant_id=self.tenant_id,
+                    cached_communities=json.dumps(partition),
+                )
 
         nodes_by_id = {node.id: node for node in nodes}
         clusters_by_id: dict[int, list[Node]] = {}

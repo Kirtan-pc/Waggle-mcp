@@ -2044,6 +2044,69 @@ def test_get_topics_returns_clusters(tmp_path: Path) -> None:
     assert topics.clusters[0].nodes
 
 
+def test_get_topics_caching_and_staleness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    graph = make_graph(tmp_path)
+    graph.add_node(
+        label="Auth REST",
+        content="User prefers REST APIs for auth",
+        node_type=NodeType.PREFERENCE,
+        tags=["auth", "api"],
+    )
+    graph.add_node(
+        label="Auth JWT",
+        content="Project uses JWT authentication",
+        node_type=NodeType.CONCEPT,
+        tags=["auth"],
+    )
+
+    # Initially communities should be stale. Verify the db column.
+    with graph._lock, graph._connect() as conn:
+        row = conn.execute("SELECT communities_stale, cached_communities FROM tenants WHERE tenant_id = ?", (graph.tenant_id,)).fetchone()
+        assert row["communities_stale"] == 1
+        assert row["cached_communities"] is None
+
+    # Track how many times _build_topic_partition is called
+    calls = 0
+    orig_build = graph._build_topic_partition
+    def mock_build(g, n):
+        nonlocal calls
+        calls += 1
+        return orig_build(g, n)
+    monkeypatch.setattr(graph, "_build_topic_partition", mock_build)
+
+    # First call: should compute and cache
+    topics1 = graph.get_topics()
+    assert calls == 1
+    with graph._lock, graph._connect() as conn:
+        row = conn.execute("SELECT communities_stale, cached_communities FROM tenants WHERE tenant_id = ?", (graph.tenant_id,)).fetchone()
+        assert row["communities_stale"] == 0
+        assert row["cached_communities"] is not None
+
+    # Second call: should skip _build_topic_partition (calls stays 1)
+    topics2 = graph.get_topics()
+    assert calls == 1
+    assert topics1.total_clusters == topics2.total_clusters
+
+    # Call with force_recompute=True: should recompute even if not stale (calls becomes 2)
+    topics3 = graph.get_topics(force_recompute=True)
+    assert calls == 2
+
+    # Mutate the graph: add a node. This should mark communities stale.
+    graph.add_node(
+        label="Database Neo4j",
+        content="Project uses Neo4j for memory storage",
+        node_type=NodeType.ENTITY,
+        tags=["database"],
+    )
+    with graph._lock, graph._connect() as conn:
+        row = conn.execute("SELECT communities_stale FROM tenants WHERE tenant_id = ?", (graph.tenant_id,)).fetchone()
+        assert row["communities_stale"] == 1
+
+    # Call after mutation: should compute again (calls becomes 3)
+    topics4 = graph.get_topics()
+    assert calls == 3
+
+
 def test_observe_conversation_round_trip_stamps_transcript_embeddings_and_turn_pairs(tmp_path: Path) -> None:
     graph = make_graph(tmp_path)
 

@@ -1183,7 +1183,16 @@ class WaggleServer:
                     "Note: scope filtering (project, agent_id, session_id) is optional and silently ignored — "
                     "topic detection always runs across the full tenant graph."
                 ),
-                inputSchema=_object_input_schema(_scope_properties()),
+                inputSchema=_object_input_schema(
+                    {
+                        **_scope_properties(),
+                        "force_recompute": {
+                            "type": "boolean",
+                            "description": "Force a full recompute of the communities using Louvain community detection.",
+                            "default": False,
+                        },
+                    }
+                ),
             ),
             types.Tool(
                 name="get_stats",
@@ -2087,7 +2096,8 @@ class WaggleServer:
                 elif name == "get_topics":
                     # Scope parameters are accepted by the schema but ignored —
                     # topic detection runs across the full tenant graph.
-                    topics = graph.get_topics()
+                    force_recompute = bool(arguments.get("force_recompute", False))
+                    topics = graph.get_topics(force_recompute=force_recompute)
                     result = self._tool_result(serialize_topics(topics), self._topic_payload(topics))
                 elif name == "get_stats":
                     stats = graph.get_stats()

@@ -1389,7 +1389,7 @@ class TraversalMixin(MemoryGraphBase):
                 ],
             )
 
-    def get_topics(self) -> TopicResult:
+    def get_topics(self, force_recompute: bool = False) -> TopicResult:
         with self._lock, self._pool.checkout() as connection:
             node_rows = connection.execute(
                 """
@@ -1403,8 +1403,37 @@ class TraversalMixin(MemoryGraphBase):
             if not node_rows:
                 return TopicResult(clusters=[], total_clusters=0)
             nodes = [self._row_to_node(row) for row in node_rows]
-            graph = self._load_graph(connection, node_ids=[node.id for node in nodes]).to_undirected()
-            partition = self._build_topic_partition(graph, nodes)
+
+            partition = None
+            if not force_recompute:
+                row = connection.execute(
+                    "SELECT communities_stale, cached_communities FROM tenants WHERE tenant_id = ?",
+                    (self.tenant_id,),
+                ).fetchone()
+                if row and row["communities_stale"] == 0 and row["cached_communities"]:
+                    try:
+                        partition = json.loads(row["cached_communities"])
+                    except Exception:
+                        partition = None
+
+            if partition is not None:
+                # Validate cached partition keys match current nodes exactly.
+                # Fallback to recompute if there's any discrepancy.
+                node_ids_set = {node.id for node in nodes}
+                if set(partition.keys()) != node_ids_set:
+                    partition = None
+
+            if partition is None:
+                graph = self._load_graph(connection, node_ids=[node.id for node in nodes]).to_undirected()
+                partition = self._build_topic_partition(graph, nodes)
+                connection.execute(
+                    """
+                    UPDATE tenants
+                    SET communities_stale = 0, cached_communities = ?
+                    WHERE tenant_id = ?
+                    """,
+                    (json.dumps(partition), self.tenant_id),
+                )
 
         nodes_by_id = {node.id: node for node in nodes}
         clusters_by_id: dict[int, list[Node]] = {}
